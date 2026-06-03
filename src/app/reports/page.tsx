@@ -1,85 +1,72 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
+import { useMemo, useState } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Download, FileText, Users, Target, TrendingUp, BarChart3, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { KpiCard } from '@/components/shared/kpi-card'
 import { KPI_DATA, FUNNEL_STAGES, CHANNEL_PERFORMANCE, REVENUE_TREND, SALES_REPS } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Date ranges ──────────────────────────────────────────────────────────────
 
 const DATE_RANGES = [
-  { label: 'آخر ٣٠ يومًا', value: '30d' },
-  { label: 'آخر ٩٠ يومًا', value: '90d' },
-  { label: 'هذا العام', value: 'ytd' },
-  { label: 'السنة الماضية', value: 'ly' },
+  { label: 'آخر ٧ أيام',  value: '7d'  },
+  { label: 'آخر ٣٠ يومًا',value: '30d' },
+  { label: 'آخر ٩٠ يومًا',value: '90d' },
+  { label: 'هذا العام',   value: 'ytd' },
 ]
 
-const CHANNEL_COLORS: Record<string, string> = {
-  WhatsApp: '#059669',
-  Web: '#1B6CA8',
-  Referral: '#D97706',
-  Social: '#E11D48',
-  SMS: '#0284C7',
-  Email: '#7C3AED',
-}
+// Simulated data multipliers per range (applied to mock data)
+const RANGE_FACTOR: Record<string, number> = { '7d': 0.23, '30d': 1, '90d': 2.9, 'ytd': 9.4 }
 
+const CHANNEL_COLORS: Record<string, string> = {
+  WhatsApp: 'var(--color-accent-pipeline)',
+  Web:      'var(--color-brand)',
+  Referral: 'var(--color-accent-lead-scoring)',
+  Social:   'var(--color-accent-marketing)',
+  SMS:      'var(--color-accent-integrations)',
+  Email:    'var(--color-accent-customer360)',
+}
 const RANK_COLORS = ['text-amber-500', 'text-slate-400', 'text-orange-700']
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtM(n: number) {
-  return `${(n / 1_000_000).toFixed(1)}م`
-}
+function fmtM(n: number) { return `${(n / 1_000_000).toFixed(1)}م` }
 
 function exportCSV() {
   const header = 'القناة,العملاء,التحويلات,معدل التحويل (%),الإيرادات (ريال)\n'
-  const rows = CHANNEL_PERFORMANCE.map(
-    (r) => `${r.channel},${r.leads},${r.conversions},${r.conversionRate},${r.revenue}`
-  ).join('\n')
+  const rows = CHANNEL_PERFORMANCE.map((r) => `${r.channel},${r.leads},${r.conversions},${r.conversionRate},${r.revenue}`).join('\n')
   const blob = new Blob(['﻿' + header + rows], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url
-  a.download = 'nhc-channel-performance.csv'
-  a.click()
+  a.href = url; a.download = 'nhc-channel-performance.csv'; a.click()
   URL.revokeObjectURL(url)
 }
 
-// ─── Revenue Trend Chart ──────────────────────────────────────────────────────
+// ─── Components ───────────────────────────────────────────────────────────────
 
-function RevenueTrendChart() {
+function RevenueTrendChart({ factor }: { factor: number }) {
+  const data = useMemo(() => {
+    const count = factor <= 0.25 ? 7 : factor <= 1 ? REVENUE_TREND.length : REVENUE_TREND.length
+    return REVENUE_TREND.slice(-Math.ceil(count)).map((d) => ({
+      ...d,
+      revenue: Math.round(d.revenue * factor),
+    }))
+  }, [factor])
+
   return (
     <div className="col-span-3 rounded-xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold mb-4">اتجاه الإيرادات الشهرية</h2>
+      <h2 className="text-sm font-semibold mb-4">اتجاه الإيرادات</h2>
       <div dir="ltr" className="h-52">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={REVENUE_TREND} barSize={30}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <BarChart data={data} barSize={30}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis dataKey="monthAr" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis
-              tick={{ fontSize: 10 }}
-              tickFormatter={(v: number) => `${(v / 1_000_000).toFixed(0)}م`}
-              width={38}
-              axisLine={false}
-              tickLine={false}
-            />
+            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${(v / 1_000_000).toFixed(0)}م`} width={38} axisLine={false} tickLine={false} />
             <Tooltip
               formatter={(v: unknown) => [`${(v as number).toLocaleString('ar-SA')} ريال`, 'الإيرادات']}
-              cursor={{ fill: 'rgba(67,56,202,0.05)' }}
+              cursor={{ fill: 'var(--color-bg-hover)' }}
             />
-            <Bar dataKey="revenue" fill="#4338CA" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" fill="var(--color-brand)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -87,28 +74,25 @@ function RevenueTrendChart() {
   )
 }
 
-// ─── Funnel Panel ─────────────────────────────────────────────────────────────
-
-function FunnelPanel() {
-  const max = FUNNEL_STAGES[0].count
+function FunnelPanel({ factor }: { factor: number }) {
+  const data = useMemo(() => FUNNEL_STAGES.map((s) => ({ ...s, count: Math.round(s.count * factor) })), [factor])
+  const max = data[0]?.count ?? 1
   return (
     <div className="col-span-2 rounded-xl border border-border bg-card p-5">
       <h2 className="text-sm font-semibold mb-5">مسار تحويل العملاء</h2>
       <div className="flex flex-col gap-3">
-        {FUNNEL_STAGES.map((stage) => {
+        {data.map((stage) => {
           const pct = Math.round((stage.count / max) * 100)
           return (
             <div key={stage.stage} className="flex items-center gap-2">
               <span className="w-20 text-end text-xs text-muted-foreground shrink-0">{stage.nameAr}</span>
               <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full flex items-center justify-end pe-2 transition-all"
-                  style={{ width: `${pct}%`, backgroundColor: stage.color }}
-                >
-                  <span className="text-white text-[11px] font-bold">{stage.count}</span>
+                <div className="h-full rounded-full flex items-center justify-end pe-2 transition-all duration-500"
+                  style={{ width: `${pct}%`, backgroundColor: stage.color }}>
+                  <span className="text-white text-[11px] font-bold font-inter">{stage.count}</span>
                 </div>
               </div>
-              <span className="w-8 text-[11px] text-muted-foreground shrink-0">{pct}%</span>
+              <span className="w-8 text-[11px] text-muted-foreground shrink-0 font-inter">{pct}%</span>
             </div>
           )
         })}
@@ -117,57 +101,43 @@ function FunnelPanel() {
   )
 }
 
-// ─── Channel Performance Chart ────────────────────────────────────────────────
-
-function ChannelChart() {
+function ChannelChart({ factor }: { factor: number }) {
+  const data = useMemo(() => CHANNEL_PERFORMANCE.map((c) => ({
+    ...c, leads: Math.round(c.leads * factor), conversions: Math.round(c.conversions * factor),
+  })), [factor])
   return (
     <div className="col-span-3 rounded-xl border border-border bg-card p-5">
       <h2 className="text-sm font-semibold mb-4">أداء القنوات — عملاء وتحويلات</h2>
       <div dir="ltr" className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={CHANNEL_PERFORMANCE} barSize={16} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <BarChart data={data} barSize={16} barGap={2}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis dataKey="channel" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
             <Tooltip
-              formatter={(v: unknown, name: unknown) => [
-                v as number,
-                name === 'leads' ? 'عملاء' : 'تحويلات',
-              ]}
+              formatter={(v: unknown, name: unknown) => [v as number, name === 'leads' ? 'عملاء' : 'تحويلات']}
             />
             <Bar dataKey="leads" name="leads" radius={[2, 2, 0, 0]}>
-              {CHANNEL_PERFORMANCE.map((e) => (
-                <Cell key={`leads-${e.channel}`} fill={CHANNEL_COLORS[e.channel] ?? '#4338CA'} fillOpacity={0.3} />
-              ))}
+              {data.map((e) => <Cell key={`leads-${e.channel}`} fill={CHANNEL_COLORS[e.channel] ?? 'var(--color-brand)'} fillOpacity={0.3} />)}
             </Bar>
             <Bar dataKey="conversions" name="conversions" radius={[2, 2, 0, 0]}>
-              {CHANNEL_PERFORMANCE.map((e) => (
-                <Cell key={`conv-${e.channel}`} fill={CHANNEL_COLORS[e.channel] ?? '#4338CA'} />
-              ))}
+              {data.map((e) => <Cell key={`conv-${e.channel}`} fill={CHANNEL_COLORS[e.channel] ?? 'var(--color-brand)'} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {CHANNEL_PERFORMANCE.map((ch) => (
-          <span
-            key={ch.channel}
-            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-[11px]"
-          >
-            <span
-              className="size-2 rounded-full shrink-0"
-              style={{ backgroundColor: CHANNEL_COLORS[ch.channel] }}
-            />
+        {data.map((ch) => (
+          <span key={ch.channel} className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-[11px]">
+            <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS[ch.channel] }} />
             {ch.channel}
-            <span className="text-muted-foreground font-medium">{ch.conversionRate}%</span>
+            <span className="text-muted-foreground font-medium font-inter">{ch.conversionRate}%</span>
           </span>
         ))}
       </div>
     </div>
   )
 }
-
-// ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 function Leaderboard() {
   return (
@@ -180,28 +150,16 @@ function Leaderboard() {
         {SALES_REPS.map((rep) => {
           const convRate = rep.leads ? Math.round((rep.conversions / rep.leads) * 100) : 0
           return (
-            <div
-              key={rep.id}
-              className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/40 transition-colors"
-            >
-              <span
-                className={cn(
-                  'w-5 text-sm font-bold text-center shrink-0',
-                  RANK_COLORS[rep.rank - 1] ?? 'text-muted-foreground'
-                )}
-              >
-                {rep.rank}
-              </span>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-reports/15 text-accent-reports text-[11px] font-bold">
-                {rep.avatarInitials}
-              </div>
+            <div key={rep.id} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/40 transition-colors">
+              <span className={cn('w-5 text-sm font-bold text-center shrink-0', RANK_COLORS[rep.rank - 1] ?? 'text-muted-foreground')}>{rep.rank}</span>
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-reports/15 text-accent-reports text-[11px] font-bold">{rep.avatarInitials}</div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">{rep.nameAr}</p>
                 <p className="text-[10px] text-muted-foreground">{rep.region}</p>
               </div>
               <div className="text-end shrink-0">
-                <p className="text-xs font-bold text-accent-reports">{fmtM(rep.revenue)} ريال</p>
-                <p className="text-[10px] text-muted-foreground">{convRate}% تحويل</p>
+                <p className="text-xs font-bold text-accent-reports font-inter">{fmtM(rep.revenue)} ريال</p>
+                <p className="text-[10px] text-muted-foreground font-inter">{convRate}% تحويل</p>
               </div>
             </div>
           )
@@ -215,87 +173,64 @@ function Leaderboard() {
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('30d')
+  const factor = RANGE_FACTOR[dateRange] ?? 1
+
+  const kpi = useMemo(() => ({
+    totalLeads: Math.round(KPI_DATA.totalLeads * factor),
+    conversionRate: KPI_DATA.conversionRate,
+    revenue: Math.round(KPI_DATA.revenueThisMonth * factor),
+    opportunities: Math.round(KPI_DATA.openOpportunities * factor),
+  }), [factor])
 
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-accent-reports">التقارير والتحليلات</h1>
+          <h1 className="text-2xl font-bold text-brand-dark">التقارير والتحليلات</h1>
           <p className="text-sm text-muted-foreground mt-0.5">نظرة شاملة على الأداء والمبيعات</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Date range picker */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             {DATE_RANGES.map((r) => (
-              <button
-                key={r.value}
-                onClick={() => setDateRange(r.value)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium transition-colors',
-                  dateRange === r.value
-                    ? 'bg-accent-reports text-white'
-                    : 'bg-background text-muted-foreground hover:bg-muted'
-                )}
-              >
+              <button key={r.value} onClick={() => setDateRange(r.value)}
+                className={cn('px-3 py-1.5 text-xs font-medium transition-colors',
+                  dateRange === r.value ? 'bg-accent-reports text-white' : 'bg-background text-muted-foreground hover:bg-muted')}>
                 {r.label}
               </button>
             ))}
           </div>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV}>
-            <Download className="size-3.5" />
-            تصدير CSV
+            <Download className="size-3.5" />تصدير CSV
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.print()}>
-            <FileText className="size-3.5" />
-            طباعة PDF
+            <FileText className="size-3.5" />طباعة PDF
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard
-          labelAr="إجمالي العملاء المحتملين"
-          value={KPI_DATA.totalLeads.toLocaleString('ar-SA')}
-          growth={KPI_DATA.totalLeadsGrowth}
-          icon={Users}
-          accentClass="text-accent-reports"
-          accentBgClass="bg-accent-reports/10"
-        />
-        <KpiCard
-          labelAr="معدل التحويل"
-          value={`${KPI_DATA.conversionRate}%`}
-          growth={KPI_DATA.conversionRateGrowth}
-          icon={Target}
-          accentClass="text-success"
-          accentBgClass="bg-success/10"
-        />
-        <KpiCard
-          labelAr="إيرادات الشهر"
-          value={`${fmtM(KPI_DATA.revenueThisMonth)} ريال`}
-          growth={KPI_DATA.revenueGrowth}
-          icon={TrendingUp}
-          accentClass="text-warning"
-          accentBgClass="bg-warning/10"
-        />
-        <KpiCard
-          labelAr="فرص نشطة"
-          value={`${KPI_DATA.openOpportunities}`}
-          icon={BarChart3}
-          accentClass="text-brand"
-          accentBgClass="bg-brand/10"
-        />
+        <KpiCard labelAr="إجمالي العملاء المحتملين" value={kpi.totalLeads.toLocaleString('ar-SA')}
+          growth={KPI_DATA.totalLeadsGrowth} icon={Users} accentClass="text-accent-reports" accentBgClass="bg-accent-reports/10" />
+        <KpiCard labelAr="معدل التحويل" value={`${kpi.conversionRate}٪`}
+          growth={KPI_DATA.conversionRateGrowth} icon={Target} accentClass="text-success" accentBgClass="bg-success/10" />
+        <KpiCard labelAr="إيرادات الفترة" value={`${fmtM(kpi.revenue)} ريال`}
+          growth={KPI_DATA.revenueGrowth} icon={TrendingUp} accentClass="text-warning" accentBgClass="bg-warning/10" />
+        <KpiCard labelAr="فرص نشطة" value={`${kpi.opportunities}`}
+          icon={BarChart3} accentClass="text-brand" accentBgClass="bg-brand/10" />
       </div>
 
       {/* Row 2: Revenue + Funnel */}
       <div className="grid grid-cols-5 gap-4">
-        <RevenueTrendChart />
-        <FunnelPanel />
+        <RevenueTrendChart factor={factor} />
+        <FunnelPanel factor={factor} />
       </div>
 
       {/* Row 3: Channel + Leaderboard */}
       <div className="grid grid-cols-5 gap-4">
-        <ChannelChart />
+        <ChannelChart factor={factor} />
         <Leaderboard />
       </div>
     </div>

@@ -6,7 +6,7 @@ shell commands, and other important information, read the current plan
 
 ## ⛔ MANDATORY — READ BEFORE ANY EDIT
 
-Before creating or editing ANY file, you MUST open and read `DESIGN-SYSTEM.md`
+Before creating or editing ANY file, you MUST open and read `nhc-design-spec.md`
 in full. It is the single source of truth for this project. Re-read it at the
 start of every session and before every screen you build.
 

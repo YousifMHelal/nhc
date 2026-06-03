@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
+import { Sidebar } from './sidebar'
 
 interface AppShellProps {
   children: React.ReactNode
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [isAuthed, setIsAuthed] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -25,28 +25,27 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [router])
 
-  if (isChecking) {
-    return <div className="min-h-screen bg-background" />
-  }
-
+  if (isChecking) return <div className="min-h-screen bg-background" />
   if (!isAuthed) return null
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Mobile backdrop */}
-      {mobileOpen && (
+    <div className="flex min-h-dvh bg-bg-page">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <Topbar onMenuToggle={() => setMobileOpen((p) => !p)} />
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
-      </main>
+      <div className="flex flex-1 flex-col min-w-0">
+        <Topbar onMenuToggle={() => setSidebarOpen((p) => !p)} />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6">{children}</div>
+        </main>
+      </div>
     </div>
   )
 }

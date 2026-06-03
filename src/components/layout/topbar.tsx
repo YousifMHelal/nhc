@@ -51,7 +51,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 sm:px-6">
       {/* Hamburger — mobile only */}
       <button
         onClick={onMenuToggle}
@@ -77,6 +77,10 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
               {userName}
             </AvatarFallback>
           </Avatar>
+          <div className="hidden sm:flex flex-col items-start leading-none">
+            <span className="text-xs font-semibold text-foreground">محمد الأحمدي</span>
+            <span className="text-[10px] text-white bg-brand rounded-full px-1.5 py-0.5 mt-0.5">مدير المبيعات</span>
+          </div>
           <ChevronDown className={`size-3.5 text-muted-foreground transition-transform hidden sm:block ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 

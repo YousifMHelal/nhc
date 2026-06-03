@@ -1,24 +1,24 @@
 import type { KpiData, FunnelStage, ChannelPerformance } from '@/lib/types'
 
 export const KPI_DATA: KpiData = {
-  totalLeads: 347,
-  totalLeadsGrowth: 23.6,
-  conversionRate: 14.8,
-  conversionRateGrowth: 3.2,
-  openOpportunities: 39,
-  openOpportunitiesValue: 112_400_000,
-  campaignPerformance: 78,
-  campaignPerformanceGrowth: 8.3,
-  revenueThisMonth: 24_800_000,
-  revenueGrowth: 31.5,
+  totalLeads: 1284,
+  totalLeadsGrowth: 18,
+  conversionRate: 68,
+  conversionRateGrowth: 5,
+  openOpportunities: 347,
+  openOpportunitiesValue: 284_600_000,
+  campaignPerformance: 94,
+  campaignPerformanceGrowth: 12,
+  revenueThisMonth: 68_400_000,
+  revenueGrowth: 14,
 }
 
 export const FUNNEL_STAGES: FunnelStage[] = [
-  { stage: 'New',         nameAr: 'جديد',        count: 98, value: 0,            conversionRate: 100,  color: 'var(--color-accent-pipeline)' },
-  { stage: 'Contacted',  nameAr: 'تم التواصل',   count: 74, value: 0,            conversionRate: 75.5, color: '#22C55E' },
-  { stage: 'Qualified',  nameAr: 'مؤهَّل',       count: 52, value: 0,            conversionRate: 70.3, color: '#16A34A' },
-  { stage: 'Proposal',   nameAr: 'عرض سعر',      count: 31, value: 98_600_000,   conversionRate: 59.6, color: '#15803D' },
-  { stage: 'Closed Won', nameAr: 'مغلق - ربح',   count: 42, value: 168_300_000,  conversionRate: 24.1, color: '#166534' },
+  { stage: 'New',         nameAr: 'جديد',        count: 98, value: 0,            conversionRate: 100,  color: 'var(--color-brand-accent)' },
+  { stage: 'Contacted',  nameAr: 'تم التواصل',   count: 74, value: 0,            conversionRate: 75.5, color: 'var(--color-success)' },
+  { stage: 'Qualified',  nameAr: 'مؤهَّل',       count: 52, value: 0,            conversionRate: 70.3, color: 'var(--color-brand)' },
+  { stage: 'Proposal',   nameAr: 'عرض سعر',      count: 31, value: 98_600_000,   conversionRate: 59.6, color: 'var(--color-warning)' },
+  { stage: 'Closed Won', nameAr: 'مغلق - ربح',   count: 42, value: 168_300_000,  conversionRate: 24.1, color: 'var(--color-brand-dark)' },
 ]
 
 export const CHANNEL_PERFORMANCE: ChannelPerformance[] = [
