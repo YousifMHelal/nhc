@@ -1,0 +1,11 @@
+export type AppRoute =
+  | '/dashboard'
+  | '/pipeline'
+  | '/customer-360'
+  | '/lead-scoring'
+  | '/marketing'
+  | '/mdm'
+  | '/workflows'
+  | '/integrations'
+  | '/support'
+  | '/reports'
