@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 
 interface ScoreRingProps {
   score: number
@@ -62,9 +62,9 @@ export function ScoreRing({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-foreground" style={{ lineHeight: 1 }}>
-            {score}
+            {toAr(score)}
           </span>
-          <span className="text-xs text-muted-foreground">/{maxScore}</span>
+          <span className="text-xs text-muted-foreground">/{toAr(maxScore)}</span>
         </div>
       </div>
       {labelAr && (

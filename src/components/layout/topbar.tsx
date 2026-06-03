@@ -2,15 +2,17 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Menu, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, LogOut, ChevronDown, PanelRight } from 'lucide-react'
 import { NAV_ITEMS } from '@/constants/nav'
 import { useState, useRef, useEffect } from 'react'
 
 interface TopbarProps {
   onMenuToggle?: () => void
+  sidebarCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export function Topbar({ onMenuToggle }: TopbarProps) {
+export function Topbar({ onMenuToggle, sidebarCollapsed, onToggleCollapse }: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -19,21 +21,19 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const activeItem = NAV_ITEMS.find((item) => item.href === pathname)
   const pageTitle = activeItem?.labelAr ?? 'لوحة التحكم'
 
-  // Get user info from sessionStorage
   const [userName, setUserName] = useState('م أ')
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem('nhc_user')
       if (stored) {
         const user = JSON.parse(stored) as { name: string }
-        setUserName(user.name.charAt(0) + user.name.split(' ')[1]?.charAt(0))
+        setUserName(user.name.charAt(0) + (user.name.split(' ')[1]?.charAt(0) ?? ''))
       }
     } catch {
       // ignore
     }
   }, [])
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -52,21 +52,33 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 sm:px-6">
-      {/* Hamburger — mobile only */}
-      <button
-        onClick={onMenuToggle}
-        className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors md:hidden"
-        aria-label="القائمة"
-      >
-        <Menu className="size-5" />
-      </button>
+      {/* Left side: hamburger (mobile) + desktop sidebar toggle + breadcrumb */}
+      <div className="flex items-center gap-2">
+        {/* Mobile hamburger */}
+        <button
+          onClick={onMenuToggle}
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors md:hidden"
+          aria-label="القائمة"
+        >
+          <Menu className="size-5" />
+        </button>
 
-      {/* Page title */}
-      <h1 className="text-base font-semibold text-foreground md:text-lg">
-        {pageTitle}
-      </h1>
+        {/* Desktop sidebar toggle — shown on md+ */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          aria-label={sidebarCollapsed ? "توسيع الشريط الجانبي" : "طي الشريط الجانبي"}
+        >
+          <PanelRight className={`size-5 transition-transform duration-200 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+        </button>
 
-      {/* User avatar dropdown */}
+        {/* Page title */}
+        <h1 className="text-base font-semibold text-foreground md:text-lg">
+          {pageTitle}
+        </h1>
+      </div>
+
+      {/* Right side: user avatar dropdown */}
       <div ref={dropdownRef} className="relative">
         <button
           onClick={() => setDropdownOpen((p) => !p)}
@@ -85,14 +97,14 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         </button>
 
         {dropdownOpen && (
-          <div className="absolute start-0 top-full mt-1 w-48 rounded-xl border border-border bg-card shadow-lg z-50">
+          <div className="absolute inset-e-0 top-full mt-1 w-52 rounded-xl border border-border bg-card shadow-lg z-50">
             <div className="border-b border-border px-4 py-3">
               <p className="text-sm font-semibold">محمد الأحمدي</p>
               <p className="text-xs text-muted-foreground">مدير المبيعات</p>
             </div>
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger/5 transition-colors"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-danger hover:bg-danger/5 transition-colors rounded-b-xl"
             >
               <LogOut className="size-4" />
               تسجيل الخروج

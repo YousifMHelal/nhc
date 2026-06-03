@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   AlertTriangle, Clock, Plus, X, CheckCircle,
   ArrowUpRight, ExternalLink, ChevronUp, ChevronsUpDown,
@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { StatusPill } from '@/components/shared/status-pill'
-import { TICKETS, SALES_REPS, getSalesRepById, SPRINT_INFO } from '@/lib/mock-data'
+import { SALES_REPS, getSalesRepById, SPRINT_INFO } from '@/lib/mock-data'
 import { toast } from 'sonner'
 import type { Ticket, TicketStatus, TicketSeverity, SupportLevel } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -200,11 +200,11 @@ interface NewTicketForm { titleAr: string; descriptionAr: string; severity: Tick
 const SLA_HOURS: Record<TicketSeverity, number> = { Critical: 4, High: 48, Medium: 72, Low: 168 }
 const EMPTY_FORM: NewTicketForm = { titleAr: '', descriptionAr: '', severity: 'Medium', level: 'L1', assignedTo: 'rep-001' }
 
-function CreateTicketModal({ onClose, onCreate }: { onClose: () => void; onCreate: (t: Ticket) => void }) {
+function CreateTicketModal({ onClose, onCreate }: { onClose: () => void; onCreate: (t: Ticket) => Promise<void> }) {
   const [form, setForm] = useState<NewTicketForm>(EMPTY_FORM)
   const update = (p: Partial<NewTicketForm>) => setForm((f) => ({ ...f, ...p }))
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.titleAr.trim()) return
     const now = new Date().toISOString()
     const slaHours = SLA_HOURS[form.severity]
@@ -215,7 +215,8 @@ function CreateTicketModal({ onClose, onCreate }: { onClose: () => void; onCreat
       steps: [{ date: now, action: 'فتح التذكرة', by: form.assignedTo }],
       escalationHistory: [], comments: [], createdAt: now,
     }
-    onCreate(ticket); onClose()
+    await onCreate(ticket)
+    onClose()
   }
 
   return (
@@ -317,13 +318,22 @@ const STATUS_TABS: { id: StatusFilter; labelAr: string }[] = [
 ]
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>(TICKETS)
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
   const [sevFilter, setSevFilter] = useState<SeverityFilter>('all')
   const [statusTab, setStatusTab] = useState<StatusFilter>('all')
   const [selected, setSelected] = useState<Ticket | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [sortField, setSortField] = useState<SortField>('severity')
   const [sortAsc, setSortAsc] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/tickets')
+      .then((r) => r.json())
+      .then((data) => setTickets(data))
+      .catch(() => toast.error('فشل تحميل التذاكر'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortAsc((a) => !a)
@@ -352,38 +362,67 @@ export default function SupportPage() {
   const critCount = tickets.filter((t) => t.severity === 'Critical').length
   const closedCount = tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length
 
-  const handleStatusChange = (id: string, status: TicketStatus) => {
-    setTickets((prev) => prev.map((t) => t.id === id ? { ...t, status } : t))
-    setSelected((prev) => prev?.id === id ? { ...prev, status } : prev)
-    toast.success(`تم تحديث حالة التذكرة إلى "${STATUS_AR[status]}"`)
-  }
+  const handleStatusChange = useCallback(async (id: string, status: TicketStatus) => {
+    const resolvedAt = (status === 'Resolved' || status === 'Closed') ? new Date().toISOString() : null
+    try {
+      await fetch(`/api/tickets/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, ...(resolvedAt && { resolvedAt }) }),
+      })
+      setTickets((prev) => prev.map((t) => t.id === id ? { ...t, status, ...(resolvedAt && { resolvedAt }) } : t))
+      setSelected((prev) => prev?.id === id ? { ...prev, status } : prev)
+      toast.success(`تم تحديث حالة التذكرة إلى "${STATUS_AR[status]}"`)
+    } catch {
+      toast.error('فشل تحديث الحالة')
+    }
+  }, [])
 
-  const handleCreate = (ticket: Ticket) => {
-    setTickets((prev) => [ticket, ...prev])
-    toast.success('تم إنشاء التذكرة بنجاح')
-  }
+  const handleCreate = useCallback(async (ticket: Ticket) => {
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ticket),
+      })
+      const saved: Ticket = await res.json()
+      setTickets((prev) => [saved, ...prev])
+      toast.success('تم إنشاء التذكرة بنجاح')
+    } catch {
+      toast.error('فشل إنشاء التذكرة')
+    }
+  }, [])
 
-  const handleEscalate = (id: string) => {
+  const handleEscalate = useCallback(async (id: string) => {
     const now = new Date().toISOString()
-    setTickets((prev) => prev.map((t) => {
-      if (t.id !== id) return t
-      return {
-        ...t,
-        level: 'L2',
-        escalationHistory: [...t.escalationHistory, {
-          date: now, fromLevel: 'L1', toLevel: 'L2',
-          reason: 'تصعيد يدوي من لوحة الدعم الفني', escalatedBy: 'rep-001',
-        }],
-        steps: [...t.steps, { date: now, action: 'تصعيد إلى L2', by: 'system' }],
-      }
-    }))
-    toast.success('تم تصعيد التذكرة إلى المستوى L2')
-  }
+    const ticket = tickets.find((t) => t.id === id)
+    if (!ticket) return
+    const escalationHistory = [...ticket.escalationHistory, {
+      date: now, fromLevel: 'L1' as const, toLevel: 'L2' as const,
+      reason: 'تصعيد يدوي من لوحة الدعم الفني', escalatedBy: 'rep-001',
+    }]
+    const steps = [...ticket.steps, { date: now, action: 'تصعيد إلى L2', by: 'system' }]
+    try {
+      await fetch(`/api/tickets/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ escalationHistory, steps }),
+      })
+      setTickets((prev) => prev.map((t) => t.id !== id ? t : { ...t, level: 'L2', escalationHistory, steps }))
+      toast.success('تم تصعيد التذكرة إلى المستوى L2')
+    } catch {
+      toast.error('فشل التصعيد')
+    }
+  }, [tickets])
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronsUpDown className="size-3 opacity-40" />
     return sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
   }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -391,7 +430,7 @@ export default function SupportPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-brand-dark">تذاكر الدعم</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{tickets.length} تذكرة إجمالاً</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{toAr(tickets.length)} تذكرة إجمالاً</p>
         </div>
         <Button className="bg-accent-support hover:bg-accent-support/90 text-white gap-1.5" onClick={() => setShowCreate(true)}>
           <Plus className="size-4" />تذكرة جديدة
@@ -407,7 +446,7 @@ export default function SupportPage() {
           { labelAr: 'محلولة / مغلقة', value: closedCount, color: 'text-success bg-success/10' },
         ].map((s) => (
           <div key={s.labelAr} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-            <div className={cn('flex size-12 items-center justify-center rounded-xl text-2xl font-bold font-inter shrink-0', s.color)}>{s.value}</div>
+            <div className={cn('flex size-12 items-center justify-center rounded-xl text-2xl font-bold font-inter shrink-0', s.color)}>{toAr(s.value)}</div>
             <p className="text-sm font-medium">{s.labelAr}</p>
           </div>
         ))}
@@ -448,7 +487,7 @@ export default function SupportPage() {
             {tab.labelAr}
             {tab.id !== 'all' && (
               <span className="ms-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {tickets.filter((t) => t.status === tab.id).length}
+                {toAr(tickets.filter((t) => t.status === tab.id).length)}
               </span>
             )}
           </button>
@@ -476,11 +515,11 @@ export default function SupportPage() {
             <BarChart3 className="size-4 text-accent-support" />
             <h3 className="text-sm font-semibold">{SPRINT_INFO.sprintNameAr}</h3>
           </div>
-          <span className="text-xs text-muted-foreground">يوم {10 - SPRINT_INFO.daysRemaining}/١٠ · {SPRINT_INFO.daysRemaining} أيام متبقية</span>
+          <span className="text-xs text-muted-foreground">يوم {toAr(10 - SPRINT_INFO.daysRemaining)}/١٠ · {toAr(SPRINT_INFO.daysRemaining)} أيام متبقية</span>
         </div>
         <div className="flex items-center gap-3">
           <Progress value={SPRINT_INFO.progressPercent} className="flex-1 h-2.5" />
-          <span className="text-sm font-bold text-accent-support font-inter">{SPRINT_INFO.progressPercent}٪</span>
+          <span className="text-sm font-bold text-accent-support font-inter">{toAr(SPRINT_INFO.progressPercent)}٪</span>
         </div>
         <p className="text-xs text-muted-foreground mt-2">{SPRINT_INFO.completedTasks} من {SPRINT_INFO.totalTasks} مهمة مكتملة</p>
       </div>

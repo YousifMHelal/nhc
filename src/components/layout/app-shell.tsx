@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Topbar } from './topbar'
 import { Sidebar } from './sidebar'
 
+const COLLAPSE_KEY = 'nhc_sidebar_collapsed'
+
 interface AppShellProps {
   children: React.ReactNode
 }
@@ -12,7 +14,9 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [isAuthed, setIsAuthed] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  // Sidebar collapse state — desktop only; initialised from sessionStorage
+  const [collapsed, setCollapsed] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -23,27 +27,64 @@ export function AppShell({ children }: AppShellProps) {
       setIsAuthed(true)
       setIsChecking(false)
     }
+    // Restore collapse preference
+    const stored = sessionStorage.getItem(COLLAPSE_KEY)
+    if (stored !== null) setCollapsed(stored === '1')
   }, [router])
 
-  if (isChecking) return <div className="min-h-screen bg-background" />
+  // On tablet (768–1279px), auto-collapse; on desktop (≥1280px), honour stored pref
+  useEffect(() => {
+    function onResize() {
+      const w = window.innerWidth
+      if (w < 768) {
+        // Mobile — sidebar is off-canvas; collapse state irrelevant here
+        return
+      }
+      if (w < 1280) {
+        // Tablet — force collapsed
+        setCollapsed(true)
+      } else {
+        // Desktop — restore stored pref
+        const stored = sessionStorage.getItem(COLLAPSE_KEY)
+        setCollapsed(stored === '1')
+      }
+    }
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  function toggleCollapse() {
+    // Only meaningful on desktop ≥1280px
+    if (window.innerWidth < 1280) return
+    setCollapsed((prev) => {
+      const next = !prev
+      sessionStorage.setItem(COLLAPSE_KEY, next ? '1' : '0')
+      return next
+    })
+  }
+
+  if (isChecking) return <div className="min-h-screen bg-bg-page" />
   if (!isAuthed) return null
 
   return (
     <div className="flex min-h-dvh bg-bg-page">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+      <Sidebar
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapse}
+      />
+
+      {/* Content area — flexes to fill remaining space */}
+      <div className="flex flex-1 flex-col min-w-0 transition-[margin] duration-200 ease-in-out">
+        <Topbar
+          onMenuToggle={() => setMobileOpen((p) => !p)}
+          sidebarCollapsed={collapsed}
+          onToggleCollapse={toggleCollapse}
         />
-      )}
-
-      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
-
-      <div className="flex flex-1 flex-col min-w-0">
-        <Topbar onMenuToggle={() => setSidebarOpen((p) => !p)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="p-4 sm:p-6">{children}</div>
+          <div className="p-6">{children}</div>
         </main>
       </div>
     </div>

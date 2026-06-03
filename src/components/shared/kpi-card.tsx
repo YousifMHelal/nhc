@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
@@ -37,12 +37,12 @@ export function KpiCard({
 
       {/* Tooltip */}
       {tooltip && showTip && (
-        <div className="absolute -top-9 start-1/2 -translate-x-1/2 z-20 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-md pointer-events-none">
+        <div className="absolute -top-9 start-1/2 z-20 whitespace-nowrap rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-md pointer-events-none -translate-x-1/2 rtl:translate-x-1/2">
           {tooltip}
         </div>
       )}
 
-      <div className="p-5 pt-6">
+      <div className="p-4 pt-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1 min-w-0">
             <span className="text-xs font-medium text-muted-foreground leading-snug">{labelAr}</span>
@@ -70,7 +70,7 @@ export function KpiCard({
               {isPositive
                 ? <TrendingUp className="size-3" />
                 : <TrendingDown className="size-3" />}
-              {isPositive ? '+' : ''}{growth}%
+              {isPositive ? '+' : ''}{toAr(growth)}٪
             </div>
             <span className="text-xs text-muted-foreground">مقارنة بالشهر الماضي</span>
           </div>

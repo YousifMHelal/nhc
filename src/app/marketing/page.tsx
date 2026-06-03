@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   MessageSquare, MessageCircle, Mail, Globe, Share2, Plus, ChevronRight,
   ChevronLeft, Check, Calendar, Users, BarChart3, Eye, TrendingUp, Zap,
@@ -10,10 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { StatusPill } from '@/components/shared/status-pill'
-import { CAMPAIGNS } from '@/lib/mock-data'
 import { toast } from 'sonner'
 import type { Campaign, Channel, PipelineStage, CampaignStatus } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -234,7 +233,7 @@ function MessageStep({ form, onChange }: { form: WizardForm; onChange: (p: Parti
               className="min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-1 focus:ring-accent-marketing resize-none"
               placeholder="اكتب رسالتك هنا..." value={form.messageBody}
               onChange={(e) => onChange({ messageBody: e.target.value })} />
-            <p className="text-xs text-muted-foreground text-end font-inter">{form.messageBody.length} حرف</p>
+            <p className="text-xs text-muted-foreground text-end font-inter">{toAr(form.messageBody.length)} حرف</p>
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -321,7 +320,7 @@ function CampaignWizard({ onDone, onCancel }: { onDone: (c: Campaign) => void; o
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold text-brand-dark">إنشاء حملة جديدة</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">الخطوة {step} من {WIZARD_STEPS.length}</p></div>
+          <p className="text-sm text-muted-foreground mt-0.5">الخطوة {toAr(step)} من {toAr(WIZARD_STEPS.length)}</p></div>
         <Button variant="ghost" onClick={onCancel}>إلغاء</Button>
       </div>
       <StepIndicator current={step} />
@@ -386,7 +385,7 @@ function MetricsDrawer({ campaign, onClose }: { campaign: Campaign; onClose: () 
                   <div key={s.labelAr} className="flex items-center gap-2 text-xs">
                     <span className="w-12 text-muted-foreground shrink-0">{s.labelAr}</span>
                     <div className="flex-1"><Progress value={s.pct} className="h-1.5" /></div>
-                    <span className="w-20 text-end font-medium font-inter">{s.value.toLocaleString('ar-SA')} <span className="text-muted-foreground">({s.pct}%)</span></span>
+                    <span className="w-20 text-end font-medium font-inter">{s.value.toLocaleString('ar-SA')} <span className="text-muted-foreground">({toAr(s.pct)}٪)</span></span>
                   </div>
                 ))}
               </div>
@@ -398,7 +397,7 @@ function MetricsDrawer({ campaign, onClose }: { campaign: Campaign; onClose: () 
               <p className="text-xs text-muted-foreground mt-0.5">وصول تقديري</p>
             </div>
             <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-lg font-bold font-inter">{sent ? Math.round((converted / sent) * 100) : 0}٪</p>
+              <p className="text-lg font-bold font-inter">{toAr(sent ? Math.round((converted / sent) * 100) : 0)}٪</p>
               <p className="text-xs text-muted-foreground mt-0.5">معدل التحويل</p>
             </div>
           </div>
@@ -437,7 +436,7 @@ function CampaignListItem({ campaign, isSelected, onClick }: { campaign: Campaig
       </div>
       <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
         <span><Users className="size-3 inline me-1" />{campaign.audience.estimatedReach.toLocaleString('ar-SA')}</span>
-        {campaign.metrics.sent > 0 && <span className="text-success font-medium"><TrendingUp className="size-3 inline me-1" />{convPct}%</span>}
+        {campaign.metrics.sent > 0 && <span className="text-success font-medium"><TrendingUp className="size-3 inline me-1" />{toAr(convPct)}٪</span>}
       </div>
     </button>
   )
@@ -446,10 +445,22 @@ function CampaignListItem({ campaign, isSelected, onClick }: { campaign: Campaig
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MarketingPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(CAMPAIGNS)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loading, setLoading] = useState(true)
   const [showWizard, setShowWizard] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(campaigns[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [metricsTarget, setMetricsTarget] = useState<Campaign | null>(null)
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then((r) => r.json())
+      .then((data: Campaign[]) => {
+        setCampaigns(data)
+        setSelectedId(data[0]?.id ?? null)
+      })
+      .catch(() => toast.error('فشل تحميل الحملات'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const selected = campaigns.find((c) => c.id === selectedId) ?? null
   const totalSent = campaigns.reduce((s, c) => s + c.metrics.sent, 0)
@@ -457,14 +468,28 @@ export default function MarketingPage() {
   const active = campaigns.filter((c) => c.status === 'Active').length
   const avgConv = totalSent ? Math.round((totalConverted / totalSent) * 100) : 0
 
-  const handleDone = (c: Campaign) => {
-    setCampaigns((prev) => [c, ...prev])
-    setSelectedId(c.id)
-    setShowWizard(false)
-    toast.success(`تم إنشاء الحملة "${c.nameAr}" بنجاح`)
+  const handleDone = async (c: Campaign) => {
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(c),
+      })
+      const saved: Campaign = await res.json()
+      setCampaigns((prev) => [saved, ...prev])
+      setSelectedId(saved.id)
+      setShowWizard(false)
+      toast.success(`تم إنشاء الحملة "${saved.nameAr}" بنجاح`)
+    } catch {
+      toast.error('فشل إنشاء الحملة')
+    }
   }
 
   if (showWizard) return <CampaignWizard onDone={handleDone} onCancel={() => setShowWizard(false)} />
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -472,7 +497,7 @@ export default function MarketingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-brand-dark">التسويق</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{campaigns.length} حملة إجمالاً</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{toAr(campaigns.length)} حملة إجمالاً</p>
         </div>
         <Button className="bg-accent-marketing hover:bg-accent-marketing/90 text-white gap-1.5" onClick={() => setShowWizard(true)}>
           <Plus className="size-4" />إنشاء حملة جديدة
@@ -482,10 +507,10 @@ export default function MarketingPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { labelAr: 'إجمالي الحملات', value: campaigns.length, icon: Megaphone, color: 'text-accent-marketing bg-accent-marketing/10' },
-          { labelAr: 'الحملات النشطة', value: active, icon: BarChart3, color: 'text-emerald-600 bg-emerald-50' },
+          { labelAr: 'إجمالي الحملات', value: toAr(campaigns.length), icon: Megaphone, color: 'text-accent-marketing bg-accent-marketing/10' },
+          { labelAr: 'الحملات النشطة', value: toAr(active), icon: BarChart3, color: 'text-emerald-600 bg-emerald-50' },
           { labelAr: 'إجمالي الرسائل', value: totalSent.toLocaleString('ar-SA'), icon: MessageCircle, color: 'text-brand bg-brand/10' },
-          { labelAr: 'معدل التحويل', value: `${avgConv}%`, icon: TrendingUp, color: 'text-amber-600 bg-amber-50' },
+          { labelAr: 'معدل التحويل', value: `${toAr(avgConv)}٪`, icon: TrendingUp, color: 'text-amber-600 bg-amber-50' },
         ].map((card) => {
           const Icon = card.icon
           return (
@@ -567,7 +592,7 @@ export default function MarketingPage() {
                       <div key={row.l} className="flex items-center gap-2 text-xs">
                         <span className="w-12 text-muted-foreground">{row.l}</span>
                         <div className="flex-1"><Progress value={row.p} className="h-1.5" /></div>
-                        <span className="w-24 text-end font-inter font-medium">{row.v.toLocaleString('ar-SA')} ({row.p}%)</span>
+                        <span className="w-24 text-end font-inter font-medium">{row.v.toLocaleString('ar-SA')} ({toAr(row.p)}٪)</span>
                       </div>
                     ))}
                   </div>

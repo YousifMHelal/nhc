@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -23,10 +23,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { JOURNEYS } from '@/lib/mock-data'
 import { toast } from 'sonner'
 import type { Journey, JourneyNodeType, JourneyStatus } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 
 // ─── Node type meta ────────────────────────────────────────────────────────────
 
@@ -172,7 +171,22 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
     toast.success('تم حذف العقدة')
   }
 
-  const handleSave = () => toast.success('تم حفظ الرحلة بنجاح')
+  const handleSave = async () => {
+    try {
+      await fetch(`/api/journeys/${journey.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodes,
+          edges,
+          status: isActive ? 'Active' : 'Draft',
+        }),
+      })
+      toast.success('تم حفظ الرحلة بنجاح')
+    } catch {
+      toast.error('فشل حفظ الرحلة')
+    }
+  }
 
   const completionRate = journey.enrolledCount
     ? Math.round((journey.completedCount / journey.enrolledCount) * 100) : 0
@@ -206,9 +220,9 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {[
-          { labelAr: 'عدد العقد', value: nodes.length, icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
-          { labelAr: 'مسجَّلون', value: journey.enrolledCount, icon: Users, color: 'text-blue-600 bg-blue-50' },
-          { labelAr: 'معدل الإكمال', value: `${completionRate}%`, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
+          { labelAr: 'عدد العقد', value: toAr(nodes.length), icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
+          { labelAr: 'مسجَّلون', value: toAr(journey.enrolledCount), icon: Users, color: 'text-blue-600 bg-blue-50' },
+          { labelAr: 'معدل الإكمال', value: `${toAr(completionRate)}٪`, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
         ].map((s) => {
           const Icon = s.icon
           return (
@@ -347,17 +361,17 @@ function JourneyCard({ journey, onSelect }: { journey: Journey; onSelect: (j: Jo
         <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0', STATUS_STYLES[journey.status])}>{STATUS_LABELS_AR[journey.status]}</span>
       </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5"><Zap className="size-3.5 text-amber-500" /><span>{journey.nodes.length} عقدة</span></div>
+        <div className="flex items-center gap-1.5"><Zap className="size-3.5 text-amber-500" /><span>{toAr(journey.nodes.length)} عقدة</span></div>
         <span>•</span>
-        <span>{journey.enrolledCount} مسجَّل</span>
+        <span>{toAr(journey.enrolledCount)} مسجَّل</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg bg-muted/60 p-2.5 text-center">
-          <p className="text-base font-bold font-inter">{journey.enrolledCount}</p>
+          <p className="text-base font-bold font-inter">{toAr(journey.enrolledCount)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">مسجَّل</p>
         </div>
         <div className="rounded-lg bg-muted/60 p-2.5 text-center">
-          <p className="text-base font-bold text-emerald-600 font-inter">{completionRate}%</p>
+          <p className="text-base font-bold text-emerald-600 font-inter">{toAr(completionRate)}٪</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">معدل الإكمال</p>
         </div>
       </div>
@@ -373,11 +387,11 @@ const TRIGGER_TYPES = [
   { id: 'scheduled', labelAr: 'مجدول' },
 ]
 
-function NewJourneyDialog({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (j: Journey) => void }) {
+function NewJourneyDialog({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (j: Journey) => Promise<void> }) {
   const [nameAr, setNameAr] = useState('')
   const [trigger, setTrigger] = useState(TRIGGER_TYPES[0].id)
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!nameAr.trim()) return
     const triggerLabel = TRIGGER_TYPES.find((t) => t.id === trigger)?.labelAr ?? 'حدث مشغِّل'
     const journey: Journey = {
@@ -386,7 +400,8 @@ function NewJourneyDialog({ open, onClose, onCreate }: { open: boolean; onClose:
       nodes: [{ id: 'n1', type: 'trigger', position: { x: 250, y: 80 }, data: { labelAr: triggerLabel, type: 'trigger', config: { event: trigger } } }],
       edges: [],
     }
-    onCreate(journey); setNameAr(''); setTrigger(TRIGGER_TYPES[0].id); onClose()
+    await onCreate(journey)
+    setNameAr(''); setTrigger(TRIGGER_TYPES[0].id); onClose()
     toast.success(`تم إنشاء رحلة "${journey.nameAr}"`)
   }
 
@@ -419,16 +434,39 @@ function NewJourneyDialog({ open, onClose, onCreate }: { open: boolean; onClose:
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function WorkflowsPage() {
-  const [journeys, setJourneys] = useState<Journey[]>(JOURNEYS)
+  const [journeys, setJourneys] = useState<Journey[]>([])
+  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Journey | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleCreate = (j: Journey) => {
-    setJourneys((prev) => [j, ...prev])
-    setSelected(j)
+  useEffect(() => {
+    fetch('/api/journeys')
+      .then((r) => r.json())
+      .then((data) => setJourneys(data))
+      .catch(() => toast.error('فشل تحميل الرحلات'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleCreate = async (j: Journey) => {
+    try {
+      const res = await fetch('/api/journeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(j),
+      })
+      const saved: Journey = await res.json()
+      setJourneys((prev) => [saved, ...prev])
+      setSelected(saved)
+    } catch {
+      toast.error('فشل إنشاء الرحلة')
+    }
   }
 
   if (selected) return <JourneyCanvas journey={selected} onBack={() => setSelected(null)} />
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
+  )
 
   const active = journeys.filter((j) => j.status === 'Active').length
   const totalEnrolled = journeys.reduce((s, j) => s + j.enrolledCount, 0)
@@ -441,7 +479,7 @@ export default function WorkflowsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-brand-dark">رحلات العملاء</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{journeys.length} رحلة إجمالاً</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{toAr(journeys.length)} رحلة إجمالاً</p>
           </div>
           <Button className="bg-accent-workflows hover:bg-accent-workflows/90 text-white gap-1.5" onClick={() => setDialogOpen(true)}>
             <Plus className="size-4" />إنشاء رحلة جديدة
@@ -450,10 +488,10 @@ export default function WorkflowsPage() {
 
         <div className="grid grid-cols-4 gap-4">
           {[
-            { labelAr: 'إجمالي الرحلات', value: journeys.length, icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
-            { labelAr: 'الرحلات النشطة', value: active, icon: Zap, color: 'text-emerald-600 bg-emerald-50' },
-            { labelAr: 'مسجَّلون', value: totalEnrolled, icon: Users, color: 'text-blue-600 bg-blue-50' },
-            { labelAr: 'متوسط الإكمال', value: `${avgCompletion}%`, icon: CheckCircle2, color: 'text-violet-600 bg-violet-50' },
+            { labelAr: 'إجمالي الرحلات', value: toAr(journeys.length), icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
+            { labelAr: 'الرحلات النشطة', value: toAr(active), icon: Zap, color: 'text-emerald-600 bg-emerald-50' },
+            { labelAr: 'مسجَّلون', value: toAr(totalEnrolled), icon: Users, color: 'text-blue-600 bg-blue-50' },
+            { labelAr: 'متوسط الإكمال', value: `${toAr(avgCompletion)}٪`, icon: CheckCircle2, color: 'text-violet-600 bg-violet-50' },
           ].map((card) => {
             const Icon = card.icon
             return (

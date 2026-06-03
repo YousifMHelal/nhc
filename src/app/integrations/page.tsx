@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   CheckCircle, AlertTriangle, XCircle, Activity,
   Search, X, ChevronDown, ChevronUp, Database,
 } from 'lucide-react'
-import { INTEGRATIONS, INTEGRATION_SUMMARY } from '@/lib/mock-data'
 import type { Integration, IntegrationStatus, IntegrationType } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -40,15 +39,15 @@ type TypeFilter = IntegrationType | 'all'
 function fmtRelTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60_000)
-  if (mins < 60) return `منذ ${mins} دقيقة`
+  if (mins < 60) return `منذ ${toAr(mins)} دقيقة`
   const hours = Math.floor(diff / 3_600_000)
-  if (hours < 24) return `منذ ${hours} ساعة`
-  return `منذ ${Math.floor(diff / 86_400_000)} يوم`
+  if (hours < 24) return `منذ ${toAr(hours)} ساعة`
+  return `منذ ${toAr(Math.floor(diff / 86_400_000))} يوم`
 }
 function fmtRecords(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}م`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}ألف`
-  return n.toString()
+  if (n >= 1_000_000) return `${toAr((n / 1_000_000).toFixed(1))}م`
+  if (n >= 1_000) return `${toAr((n / 1_000).toFixed(0))}ألف`
+  return toAr(n)
 }
 
 // ─── Full Audit Log Modal ─────────────────────────────────────────────────────
@@ -77,11 +76,11 @@ function AuditLogModal({ integration, onClose }: { integration: Integration; onC
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30 shrink-0">
           <div className="flex items-center gap-2">
             <Activity className="size-4 text-accent-integrations" />
-            <span className="text-sm font-semibold">سجل آخر {log.length} طلب</span>
+            <span className="text-sm font-semibold">سجل آخر {toAr(log.length)} طلب</span>
           </div>
           {errorCount > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger">
-              <AlertTriangle className="size-3" />{errorCount} خطأ
+              <AlertTriangle className="size-3" />{toAr(errorCount)} خطأ
             </span>
           )}
         </div>
@@ -110,7 +109,7 @@ function AuditLogModal({ integration, onClose }: { integration: Integration; onC
                       <span className={cn('font-mono font-bold', isError ? 'text-danger' : 'text-success')}>{entry.statusCode}</span>
                     </td>
                     <td className="px-3 py-2 font-mono text-muted-foreground">{entry.duration}</td>
-                    <td className="px-3 py-2 font-mono">{entry.records > 0 ? entry.records.toLocaleString() : '—'}</td>
+                    <td className="px-3 py-2 font-mono">{entry.records > 0 ? toAr(entry.records.toLocaleString('ar-SA')) : '—'}</td>
                   </tr>
                 )
               })}
@@ -207,13 +206,30 @@ function IntegrationRow({ integration, onViewFull }: { integration: Integration;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function IntegrationsPage() {
+  const [integrations, setIntegrations] = useState<Integration[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [search, setSearch] = useState('')
   const [fullLogTarget, setFullLogTarget] = useState<Integration | null>(null)
 
+  useEffect(() => {
+    fetch('/api/integrations')
+      .then((r) => r.json())
+      .then((data) => setIntegrations(data))
+      .catch(() => {/* silently fall back to empty list */})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const summary = useMemo(() => ({
+    total: integrations.length,
+    active: integrations.filter((i) => i.status === 'Active').length,
+    warning: integrations.filter((i) => i.status === 'Warning').length,
+    error: integrations.filter((i) => i.status === 'Error').length,
+  }), [integrations])
+
   const filtered = useMemo(() => {
-    let list = INTEGRATIONS.filter((i) => {
+    let list = integrations.filter((i) => {
       if (statusFilter !== 'all' && i.status !== statusFilter) return false
       if (typeFilter !== 'all' && i.type !== typeFilter) return false
       if (search && !i.nameAr.includes(search) && !i.nameEn.toLowerCase().includes(search.toLowerCase())) return false
@@ -224,28 +240,32 @@ export default function IntegrationsPage() {
     return list
   }, [statusFilter, typeFilter, search])
 
+  if (loading) return (
+    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
+  )
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-brand-dark">مراقبة التكاملات</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {INTEGRATION_SUMMARY.total} تكامل —{' '}
-          <span className="text-success font-medium">{INTEGRATION_SUMMARY.active} نشط</span>
+          {toAr(summary.total)} تكامل —{' '}
+          <span className="text-success font-medium">{toAr(summary.active)} نشط</span>
           {' · '}
-          <span className="text-warning font-medium">{INTEGRATION_SUMMARY.warning} تحذير</span>
+          <span className="text-warning font-medium">{toAr(summary.warning)} تحذير</span>
           {' · '}
-          <span className="text-danger font-medium">{INTEGRATION_SUMMARY.error} خطأ</span>
+          <span className="text-danger font-medium">{toAr(summary.error)} خطأ</span>
         </p>
       </div>
 
       {/* Summary chips */}
       <div className="flex items-center gap-3 flex-wrap">
         {[
-          { label: `${INTEGRATION_SUMMARY.active} نشط`, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', filter: 'Active' as StatusFilter },
-          { label: `${INTEGRATION_SUMMARY.warning} تحذير`, color: 'bg-amber-100 text-amber-700 border-amber-200', filter: 'Warning' as StatusFilter },
-          { label: `${INTEGRATION_SUMMARY.error} خطأ`, color: 'bg-red-100 text-red-700 border-red-200', filter: 'Error' as StatusFilter },
-          { label: `${INTEGRATION_SUMMARY.total} إجمالي`, color: 'bg-muted text-muted-foreground border-border', filter: 'all' as StatusFilter },
+          { label: `${toAr(summary.active)} نشط`, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', filter: 'Active' as StatusFilter },
+          { label: `${toAr(summary.warning)} تحذير`, color: 'bg-amber-100 text-amber-700 border-amber-200', filter: 'Warning' as StatusFilter },
+          { label: `${toAr(summary.error)} خطأ`, color: 'bg-red-100 text-red-700 border-red-200', filter: 'Error' as StatusFilter },
+          { label: `${toAr(summary.total)} إجمالي`, color: 'bg-muted text-muted-foreground border-border', filter: 'all' as StatusFilter },
         ].map((chip) => (
           <button
             key={chip.filter}
@@ -260,17 +280,17 @@ export default function IntegrationsPage() {
       {/* Stats cards */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { labelAr: 'إجمالي التكاملات', value: INTEGRATION_SUMMARY.total, Icon: Database, color: 'text-accent-integrations bg-accent-integrations/10' },
-          { labelAr: 'نشط',    value: INTEGRATION_SUMMARY.active,  Icon: CheckCircle,   color: 'text-success bg-success/10' },
-          { labelAr: 'تحذير',  value: INTEGRATION_SUMMARY.warning, Icon: AlertTriangle, color: 'text-warning bg-warning/10' },
-          { labelAr: 'خطأ',    value: INTEGRATION_SUMMARY.error,   Icon: XCircle,       color: 'text-danger bg-danger/10' },
+          { labelAr: 'إجمالي التكاملات', value: summary.total, Icon: Database, color: 'text-accent-integrations bg-accent-integrations/10' },
+          { labelAr: 'نشط',    value: summary.active,  Icon: CheckCircle,   color: 'text-success bg-success/10' },
+          { labelAr: 'تحذير',  value: summary.warning, Icon: AlertTriangle, color: 'text-warning bg-warning/10' },
+          { labelAr: 'خطأ',    value: summary.error,   Icon: XCircle,       color: 'text-danger bg-danger/10' },
         ].map((card) => (
           <div key={card.labelAr} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
             <div className={cn('flex size-11 items-center justify-center rounded-xl shrink-0', card.color)}>
               <card.Icon className="size-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold leading-none font-inter">{card.value}</p>
+              <p className="text-2xl font-bold leading-none font-inter">{toAr(card.value)}</p>
               <p className="text-xs text-muted-foreground mt-1">{card.labelAr}</p>
             </div>
           </div>
@@ -322,7 +342,7 @@ export default function IntegrationsPage() {
       )}
 
       <p className="text-xs text-muted-foreground text-center pb-2">
-        يعرض {filtered.length} من {INTEGRATION_SUMMARY.total} تكامل
+        يعرض {filtered.length} من {summary.total} تكامل
       </p>
 
       {fullLogTarget && <AuditLogModal integration={fullLogTarget} onClose={() => setFullLogTarget(null)} />}

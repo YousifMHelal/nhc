@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ScoreRing } from '@/components/shared/score-ring'
 import { StatusPill } from '@/components/shared/status-pill'
 import type { Lead, LeadScore, SalesRep, LeadGrade } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from "@/lib/utils";
 
 const GRADE_STYLES: Record<LeadGrade, string> = {
   A: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -44,34 +44,40 @@ function LeadListItem({
     <button
       onClick={onSelect}
       className={cn(
-        'w-full flex items-center gap-3 rounded-xl border p-3.5 text-right transition-all',
+        "w-full flex items-center gap-3 rounded-xl border p-3.5 text-right transition-all",
         isSelected
-          ? 'border-accent-lead-scoring bg-amber-50 shadow-sm'
-          : 'border-border bg-card hover:border-accent-lead-scoring/50 hover:bg-muted/30'
-      )}
-    >
+          ? "border-accent-lead-scoring bg-amber-50 shadow-sm"
+          : "border-border bg-card hover:border-accent-lead-scoring/50 hover:bg-muted/30",
+      )}>
       <Avatar className="size-9 shrink-0">
         <AvatarFallback className="bg-accent-lead-scoring/10 text-accent-lead-scoring text-xs font-bold">
           {lead.nameAr.charAt(0)}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{lead.nameAr}</p>
-        <p className="text-xs text-muted-foreground truncate">{lead.propertyInterest} · {lead.city}</p>
+        <p className="text-sm font-semibold text-foreground truncate">
+          {lead.nameAr}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">
+          {lead.propertyInterest} · {lead.city}
+        </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span
           className={cn(
-            'text-lg font-extrabold',
-            lead.aiScore >= 80 ? 'text-success' : lead.aiScore >= 60 ? 'text-accent-lead-scoring' : 'text-muted-foreground'
-          )}
-        >
-          {lead.aiScore}
+            "text-lg font-extrabold",
+            lead.aiScore >= 80
+              ? "text-success"
+              : lead.aiScore >= 60
+                ? "text-accent-lead-scoring"
+                : "text-muted-foreground",
+          )}>
+          {toAr(lead.aiScore)}
         </span>
         {score && <TrendIcon trend={score.trend} />}
       </div>
     </button>
-  )
+  );
 }
 
 function ScoreDetailPanel({ lead, score, salesReps }: { lead: Lead; score: LeadScore; salesReps: SalesRep[] }) {
@@ -133,25 +139,42 @@ function ScoreDetailPanel({ lead, score, salesReps }: { lead: Lead; score: LeadS
             return (
               <div key={i} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{factor.labelAr}</span>
+                  <span className="font-medium text-foreground">
+                    {factor.labelAr}
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{factor.score}/{factor.maxScore}</span>
-                    <span className={cn('text-xs font-bold', pct >= 80 ? 'text-success' : pct >= 60 ? 'text-accent-lead-scoring' : pct >= 40 ? 'text-warning' : 'text-danger')}>
-                      {pct}٪
+                    <span className="text-muted-foreground">
+                      {toAr(factor.score)}/{toAr(factor.maxScore)}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs font-bold",
+                        pct >= 80
+                          ? "text-success"
+                          : pct >= 60
+                            ? "text-accent-lead-scoring"
+                            : pct >= 40
+                              ? "text-warning"
+                              : "text-danger",
+                      )}>
+                      {toAr(pct)}٪
                     </span>
                   </div>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
-                    className={cn('h-full rounded-full transition-all duration-500', color)}
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      color,
+                    )}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  الوزن النسبي: {Math.round(factor.weight * 100)}٪
+                  الوزن النسبي: {toAr(Math.round(factor.weight * 100))}٪
                 </p>
               </div>
-            )
+            );
           })}
         </div>
       </div>
@@ -198,13 +221,13 @@ function NoScoreState({ lead }: { lead: Lead }) {
       </div>
       <h3 className="text-base font-semibold text-foreground">{lead.nameAr}</h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        نقاط الذكاء الاصطناعي: <strong>{lead.aiScore}</strong> / ١٠٠
+        نقاط الذكاء الاصطناعي: <strong>{toAr(lead.aiScore)}</strong> / ١٠٠
       </p>
       <p className="mt-3 text-xs text-muted-foreground">
         لا يوجد تفصيل متاح لهذا العميل حتى الآن.
       </p>
     </div>
-  )
+  );
 }
 
 const VISIBLE_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal']
@@ -228,14 +251,20 @@ export function LeadScoringClient({ leads, scores, salesReps }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-bold text-accent-lead-scoring">تقييم العملاء المحتملين</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">تحليل ذكاء اصطناعي لتحديد العملاء الأعلى قيمة</p>
+        <h1 className="text-xl font-bold text-accent-lead-scoring">
+          تقييم العملاء المحتملين
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          تحليل ذكاء اصطناعي لتحديد العملاء الأعلى قيمة
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground">العملاء النشطون ({scorableLeads.length})</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              العملاء النشطون ({toAr(scorableLeads.length)})
+            </h3>
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px]">
             {scorableLeads.map((lead) => (
@@ -252,12 +281,16 @@ export function LeadScoringClient({ leads, scores, salesReps }: Props) {
 
         <div className="lg:col-span-2">
           {selectedLead && selectedScore ? (
-            <ScoreDetailPanel lead={selectedLead} score={selectedScore} salesReps={salesReps} />
+            <ScoreDetailPanel
+              lead={selectedLead}
+              score={selectedScore}
+              salesReps={salesReps}
+            />
           ) : selectedLead ? (
             <NoScoreState lead={selectedLead} />
           ) : null}
         </div>
       </div>
     </div>
-  )
+  );
 }

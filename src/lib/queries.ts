@@ -390,3 +390,133 @@ export async function getRevenueTrend() {
   const { REVENUE_TREND } = await import('./mock-data/analytics')
   return REVENUE_TREND
 }
+
+// ─── Journey Mutations ───────────────────────────────────────────────────────
+
+export async function createJourney(data: Omit<Journey, 'id' | 'createdAt'>): Promise<Journey> {
+  const { db } = await import('./db')
+  const row = await db.journey.create({
+    data: {
+      nameAr: data.nameAr,
+      descriptionAr: data.descriptionAr ?? '',
+      status: data.status as never,
+      nodes: data.nodes as never,
+      edges: data.edges as never,
+      trigger: data.trigger,
+      enrolledCount: data.enrolledCount,
+      completedCount: data.completedCount,
+    },
+  })
+  return toIso(row) as unknown as Journey
+}
+
+export async function updateJourney(id: string, data: Partial<Omit<Journey, 'id' | 'createdAt'>>): Promise<Journey> {
+  const { db } = await import('./db')
+  const row = await db.journey.update({
+    where: { id },
+    data: {
+      ...(data.nameAr !== undefined && { nameAr: data.nameAr }),
+      ...(data.descriptionAr !== undefined && { descriptionAr: data.descriptionAr }),
+      ...(data.status !== undefined && { status: data.status as never }),
+      ...(data.nodes !== undefined && { nodes: data.nodes as never }),
+      ...(data.edges !== undefined && { edges: data.edges as never }),
+      ...(data.trigger !== undefined && { trigger: data.trigger }),
+    },
+  })
+  return toIso(row) as unknown as Journey
+}
+
+export async function deleteJourney(id: string): Promise<void> {
+  const { db } = await import('./db')
+  await db.journey.delete({ where: { id } })
+}
+
+// ─── Campaign Mutations ──────────────────────────────────────────────────────
+
+export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt'>): Promise<Campaign> {
+  const { db } = await import('./db')
+  const row = await db.campaign.create({
+    data: {
+      nameAr: data.nameAr,
+      type: data.type,
+      descriptionAr: data.descriptionAr,
+      channels: data.channels as never,
+      audience: data.audience as never,
+      messageTemplate: data.messageTemplate as never,
+      schedule: data.schedule as never,
+      status: data.status as never,
+      metrics: data.metrics as never,
+      createdBy: data.createdBy,
+    },
+  })
+  return toIso(row) as unknown as Campaign
+}
+
+export async function updateCampaign(id: string, data: Partial<Omit<Campaign, 'id' | 'createdAt'>>): Promise<Campaign> {
+  const { db } = await import('./db')
+  const row = await db.campaign.update({
+    where: { id },
+    data: {
+      ...(data.nameAr !== undefined && { nameAr: data.nameAr }),
+      ...(data.status !== undefined && { status: data.status as never }),
+      ...(data.metrics !== undefined && { metrics: data.metrics as never }),
+    },
+  })
+  return toIso(row) as unknown as Campaign
+}
+
+// ─── Ticket Mutations ────────────────────────────────────────────────────────
+
+export async function createTicket(data: Omit<Ticket, 'id' | 'createdAt'>): Promise<Ticket> {
+  const { db } = await import('./db')
+  const row = await db.ticket.create({
+    data: {
+      titleAr: data.titleAr,
+      descriptionAr: data.descriptionAr,
+      severity: data.severity as never,
+      status: data.status.replace(' ', '') as never,
+      level: data.level as never,
+      assignedTo: data.assignedTo,
+      customerId: data.customerId ?? null,
+      slaDeadline: new Date(data.slaDeadline),
+      slaHours: data.slaHours,
+      steps: data.steps as never,
+      rcaLink: data.rcaLink ?? null,
+      escalationHistory: data.escalationHistory as never,
+      comments: data.comments as never,
+    },
+  })
+  return toIso(row) as unknown as Ticket
+}
+
+export async function updateTicket(id: string, data: Partial<Pick<Ticket, 'status' | 'assignedTo' | 'steps' | 'comments' | 'escalationHistory' | 'resolvedAt'>>): Promise<Ticket> {
+  const { db } = await import('./db')
+  const row = await db.ticket.update({
+    where: { id },
+    data: {
+      ...(data.status !== undefined && { status: data.status.replace(' ', '') as never }),
+      ...(data.assignedTo !== undefined && { assignedTo: data.assignedTo }),
+      ...(data.steps !== undefined && { steps: data.steps as never }),
+      ...(data.comments !== undefined && { comments: data.comments as never }),
+      ...(data.escalationHistory !== undefined && { escalationHistory: data.escalationHistory as never }),
+      ...(data.resolvedAt !== undefined && { resolvedAt: data.resolvedAt ? new Date(data.resolvedAt) : null }),
+    },
+  })
+  return toIso(row) as unknown as Ticket
+}
+
+// ─── Integration Mutations ───────────────────────────────────────────────────
+
+export async function updateIntegration(id: string, data: Partial<Pick<Integration, 'status' | 'recordCount' | 'lastSync' | 'auditLog'>>): Promise<Integration> {
+  const { db } = await import('./db')
+  const row = await db.integration.update({
+    where: { id },
+    data: {
+      ...(data.status !== undefined && { status: data.status as never }),
+      ...(data.recordCount !== undefined && { recordCount: data.recordCount }),
+      ...(data.lastSync !== undefined && { lastSync: new Date(data.lastSync) }),
+      ...(data.auditLog !== undefined && { auditLog: data.auditLog as never }),
+    },
+  })
+  return toIso(row) as unknown as Integration
+}
