@@ -281,7 +281,14 @@ async function seedLeadScores() {
   for (const s of LEAD_SCORES) {
     await prisma.leadScore.upsert({
       where: { leadId: s.leadId },
-      update: {},
+      update: {
+        totalScore: s.totalScore,
+        maxScore: s.maxScore,
+        grade: s.grade as never,
+        factors: s.factors as never,
+        trend: s.trend,
+        topFactors: s.topFactors as never,
+      },
       create: {
         leadId: s.leadId,
         totalScore: s.totalScore,

@@ -130,9 +130,11 @@ function ScoreDetailPanel({ lead, score, salesReps }: { lead: Lead; score: LeadS
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="mb-4 text-sm font-semibold text-foreground">تفصيل العوامل</h3>
+        <h3 className="mb-4 text-sm font-semibold text-foreground">العوامل المؤثرة في درجة التقييم</h3>
         <div className="space-y-4">
-          {score.factors.map((factor, i) => {
+          {[...score.factors]
+            .sort((a, b) => a.score / a.maxScore - b.score / b.maxScore)
+            .map((factor, i) => {
             const pct = Math.round((factor.score / factor.maxScore) * 100)
             const color =
               pct >= 80 ? 'bg-success' : pct >= 60 ? 'bg-accent-lead-scoring' : pct >= 40 ? 'bg-warning' : 'bg-danger'
@@ -143,9 +145,6 @@ function ScoreDetailPanel({ lead, score, salesReps }: { lead: Lead; score: LeadS
                     {factor.labelAr}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">
-                      {toAr(factor.score)}/{toAr(factor.maxScore)}
-                    </span>
                     <span
                       className={cn(
                         "text-xs font-bold",
