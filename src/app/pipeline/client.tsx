@@ -20,8 +20,9 @@ import { StatusPill } from '@/components/shared/status-pill'
 import { ScoreRing } from '@/components/shared/score-ring'
 import { KanbanCardSkeleton } from '@/components/shared/skeleton-card'
 import type { Lead, SalesRep, PipelineStage, LeadSource, Channel } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { scoreLead } from '@/lib/ai/leadScore'
 
 // ── Column config ─────────────────────────────────────────────────────────────
 
@@ -48,17 +49,41 @@ const CITIES = ['الرياض', 'جدة', 'الدمام', 'مكة المكرمة
 
 const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
 
-// ── Score badge ───────────────────────────────────────────────────────────────
+// ── AI Score badge (purple, hover → top-3 factors) ──────────────────────────
 
-function ScoreBadge({ score }: { score: number }) {
-  const cls = score >= 80 ? 'bg-emerald-100 text-emerald-700'
-    : score >= 60 ? 'bg-amber-100 text-amber-700'
-    : score >= 40 ? 'bg-orange-100 text-orange-700'
-    : 'bg-red-100 text-red-700'
+function AIScoreBadge({ lead }: { lead: Lead }) {
+  const result = scoreLead(lead)
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold', cls)}>
-      <Star className="size-3" />{score}
-    </span>
+    <div className="relative group/aibadge">
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold cursor-default select-none"
+        style={{ background: 'var(--purple-bg)', color: 'var(--purple)' }}
+      >
+        <Star className="size-3" fill="currentColor" />
+        {toAr(result.score)}
+      </span>
+      {/* Hover tooltip — top 3 factors */}
+      <div className="pointer-events-none absolute bottom-full inset-e-0 mb-2 z-50 hidden w-52 rounded-lg border border-border bg-card shadow-md group-hover/aibadge:block p-3 text-right">
+        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--purple)' }}>أبرز عوامل التقييم</p>
+        <ul className="space-y-1.5">
+          {result.topFactors.map((f, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-foreground">{f.labelAr}</span>
+              <span
+                className="shrink-0 font-bold text-[11px]"
+                style={{ color: f.contribution > 0 ? 'var(--success)' : 'var(--error)' }}
+              >
+                {f.contribution > 0 ? '+' : ''}{toAr(Math.round(f.contribution))}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 border-t border-border pt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>الاحتمالية</span>
+          <span className="font-inter font-semibold">{toAr(Math.round(result.probability * 100))}٪</span>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -84,7 +109,7 @@ function KanbanCardItem({ lead, onSelect }: { lead: Lead; onSelect: (l: Lead) =>
           <p className="text-sm font-semibold text-foreground truncate">{lead.nameAr}</p>
           <p className="text-xs text-muted-foreground truncate">{lead.propertyInterest} · {lead.city}</p>
         </div>
-        <ScoreBadge score={lead.aiScore} />
+        <AIScoreBadge lead={lead} />
       </div>
       {lead.budget && (
         <p className="text-xs font-medium text-muted-foreground mb-2">
@@ -116,7 +141,7 @@ function KanbanColumnZone({ col, leads, onSelect, isLoading }: { col: KanbanColu
     <div className="flex min-w-[220px] flex-col gap-3 flex-1">
       <div className={cn('flex items-center justify-between rounded-lg border px-3 py-2', col.headerBg)}>
         <span className={cn('text-sm font-semibold', col.colorClass)}>{col.labelAr}</span>
-        <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold bg-white/70', col.colorClass)}>{leads.length}</span>
+        <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold bg-white/70', col.colorClass)}>{toAr(leads.length)}</span>
       </div>
       <div
         ref={setNodeRef}
@@ -204,6 +229,35 @@ function LeadDrawer({ lead, salesReps, open, onClose }: { lead: Lead | null; sal
               <p className="text-sm leading-relaxed">{lead.notes}</p>
             </div>
           )}
+
+          {/* AI score breakdown panel */}
+          {(() => {
+            const aiResult = scoreLead(lead)
+            return (
+              <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--purple)', background: 'var(--purple-bg)' }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--purple)' }}>تحليل الذكاء الاصطناعي</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-xs font-bold font-inter" style={{ background: 'var(--purple)', color: '#fff' }}>
+                    {toAr(aiResult.score)} / ١٠٠
+                  </span>
+                </div>
+                <ul className="space-y-1.5">
+                  {aiResult.topFactors.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-foreground">{f.labelAr}</span>
+                      <span className="font-bold shrink-0" style={{ color: f.contribution > 0 ? 'var(--success)' : 'var(--error)' }}>
+                        {f.contribution > 0 ? '+' : ''}{toAr(Math.round(f.contribution))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="border-t pt-2 text-xs text-muted-foreground flex justify-between" style={{ borderColor: 'var(--purple)' }}>
+                  <span>احتمالية التحويل</span>
+                  <span className="font-inter font-semibold" style={{ color: 'var(--purple)' }}>{toAr(Math.round(aiResult.probability * 100))}٪</span>
+                </div>
+              </div>
+            )
+          })()}
 
           {lead.customerId && (
             <Button
@@ -366,7 +420,7 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-dark">خط المبيعات</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{leads.length} عميل محتمل</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{toAr(leads.length)} عميل محتمل</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
@@ -444,7 +498,7 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
                   <p className="text-sm font-semibold truncate">{activeLead.nameAr}</p>
                   <p className="text-xs text-muted-foreground">{activeLead.propertyInterest}</p>
                 </div>
-                <ScoreBadge score={activeLead.aiScore} />
+                <AIScoreBadge lead={activeLead} />
               </div>
             </div>
           )}
@@ -454,10 +508,10 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
       {/* Stats bar */}
       <div className="grid grid-cols-4 gap-4 border-t border-border pt-4 mt-auto">
         {[
-          { labelAr: 'إجمالي النشطين', value: activeLeads.length.toString() },
-          { labelAr: 'قيمة المسار (م ريال)', value: `${(pipelineValue / 1_000_000).toFixed(1)}م` },
+          { labelAr: 'إجمالي النشطين', value: toAr(activeLeads.length) },
+          { labelAr: 'قيمة المسار (م ريال)', value: `${toAr((pipelineValue / 1_000_000).toFixed(1))}م` },
           { labelAr: 'آخر تواصل (متوسط أيام)', value: '٤.٢' },
-          { labelAr: 'معدل الإغلاق', value: `${winRate}٪` },
+          { labelAr: 'معدل الإغلاق', value: `${toAr(winRate)}٪` },
         ].map((s) => (
           <div key={s.labelAr} className="rounded-xl border border-border bg-card px-4 py-3 text-center">
             <p className="text-lg font-bold text-brand font-inter">{s.value}</p>

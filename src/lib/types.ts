@@ -207,6 +207,20 @@ export interface LeadScore {
   topFactors: string[]
 }
 
+export interface AIScoreFactor {
+  labelAr: string
+  contribution: number  // 0–100 relative contribution (positive = good)
+  raw: number          // raw feature value (0–1)
+}
+
+export interface AIScoreResult {
+  score: number              // 0–100 final score
+  tier: 'A' | 'B' | 'C' | 'D'
+  probability: number        // raw logistic output 0–1
+  topFactors: AIScoreFactor[]
+  scoredAt: string
+}
+
 // ─── Marketing Campaign ────────────────────────────────────────────────────────
 
 export interface MessageTemplate {

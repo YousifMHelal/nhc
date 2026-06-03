@@ -14,7 +14,8 @@ import { ScoreRing } from '@/components/shared/score-ring'
 import { TimelineItemSkeleton } from '@/components/shared/skeleton-card'
 import { toast } from 'sonner'
 import type { TimelineEvent, Customer, Opportunity, Contract } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toAr } from '@/lib/utils'
+import { scoreLead } from '@/lib/ai/leadScore'
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; bgClass: string; colorClass: string; labelAr: string }> = {
   Call:        { icon: PhoneCall,    bgClass: 'bg-blue-100',   colorClass: 'text-blue-600',   labelAr: 'مكالمة' },
@@ -111,7 +112,7 @@ function LogInteractionModal({ onClose, onSave }: { onClose: () => void; onSave:
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">ملاحظات</label>
           <textarea
-            className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             placeholder="اكتب ملاحظات التفاعل..."
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -201,7 +202,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
           >
             {customers.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
           </select>
-          <ChevronDown className="pointer-events-none absolute end-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <ChevronDown className="pointer-events-none absolute inset-e-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
       </div>
 
@@ -225,12 +226,29 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
               {/* AI Score with tooltip hint */}
               <div className="relative group">
                 <ScoreRing score={customer.aiScore} size={80} strokeWidth={8} labelAr="نقاط AI" />
-                <div className="absolute -top-12 start-1/2 -translate-x-1/2 hidden group-hover:block z-10 bg-foreground text-background text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                  <p className="font-semibold mb-1">أبرز عوامل التقييم:</p>
-                  <p>• مستوى التفاعل (+٢٥)</p>
-                  <p>• الميزانية المناسبة (+٢٠)</p>
-                  <p>• قوة المصدر (+١٥)</p>
-                </div>
+                {(() => {
+                  const aiLead = { id: customer.id, source: 'Referral' as const, channel: 'WhatsApp' as const, propertyInterest: customer.propertyInterest, city: customer.city, budget: undefined, email: customer.email, lastContactDate: new Date().toISOString(), createdAt: customer.createdAt, stage: 'Qualified' as const, aiScore: customer.aiScore, salesRepId: customer.salesRepId, nameAr: customer.nameAr, phone: customer.phone, nationality: customer.nationality }
+                  const aiResult = scoreLead(aiLead)
+                  return (
+                    <div className="absolute -top-2 -translate-y-full inset-s-1/2 -translate-x-1/2 hidden group-hover:block z-10 w-52 rounded-lg border border-border bg-card shadow-md text-right p-3">
+                      <p className="text-xs font-semibold mb-2" style={{ color: 'var(--purple)' }}>أبرز عوامل التقييم</p>
+                      <ul className="space-y-1.5">
+                        {aiResult.topFactors.map((f, i) => (
+                          <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="text-foreground">{f.labelAr}</span>
+                            <span className="font-bold shrink-0" style={{ color: f.contribution > 0 ? 'var(--success)' : 'var(--error)' }}>
+                              {f.contribution > 0 ? '+' : ''}{toAr(Math.round(f.contribution))}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-2 border-t border-border pt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>احتمالية التحويل</span>
+                        <span className="font-inter font-semibold" style={{ color: 'var(--purple)' }}>{toAr(Math.round(aiResult.probability * 100))}٪</span>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
 
@@ -302,7 +320,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
               ].map(([label, count]) => (
                 <div key={String(label)} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{label}</span>
-                  <span className="font-semibold text-accent-customer360">{count}</span>
+                  <span className="font-semibold text-accent-customer360">{toAr(Number(count))}</span>
                 </div>
               ))}
             </div>
@@ -349,7 +367,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                     ))}
                   </div>
                 </div>
-                <div className="overflow-y-auto max-h-[520px] pe-1">
+                <div className="overflow-y-auto max-h-130 pe-1">
                   {isLoading
                     ? Array.from({ length: 4 }).map((_, i) => <TimelineItemSkeleton key={i} />)
                     : filteredTimeline.length === 0
@@ -369,7 +387,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
             {activeTab === 'opportunities' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold">الفرص ({opportunities.length})</h3>
+                  <h3 className="text-sm font-semibold">الفرص ({toAr(opportunities.length)})</h3>
                   <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setShowOppModal(true)}>
                     <Plus className="size-3.5" /> فرصة جديدة
                   </Button>
@@ -397,7 +415,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
             {/* Contracts tab */}
             {activeTab === 'contracts' && (
               <div className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold mb-2">العقود ({contracts.length})</h3>
+                <h3 className="text-sm font-semibold mb-2">العقود ({toAr(contracts.length)})</h3>
                 {contracts.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">لا توجد عقود مسجلة</p>
                 ) : contracts.map((c) => (
@@ -410,7 +428,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                       <StatusPill type="contract" value={c.status} />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{(c.valueRiyal / 1_000_000).toFixed(2)} م ريال</span>
+                      <span>{toAr((c.valueRiyal / 1_000_000).toFixed(2))} م ريال</span>
                       <span>{c.paymentPlan}</span>
                     </div>
                   </div>
