@@ -1,14 +1,19 @@
 import { neonConfig } from '@neondatabase/serverless'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@/generated/prisma/client'
 import ws from 'ws'
 
-// Node.js runtime requires the ws package; edge runtimes use native WebSocket
-neonConfig.webSocketConstructor = ws
-
 function createClient() {
-  const connectionString = process.env.DATABASE_URL!
-  const adapter = new PrismaNeon({ connectionString })
+  const url = process.env.DATABASE_URL!
+  if (url.includes('neon.tech') || url.includes('.neon.')) {
+    // Neon serverless — WebSocket adapter
+    neonConfig.webSocketConstructor = ws
+    const adapter = new PrismaNeon({ connectionString: url })
+    return new PrismaClient({ adapter })
+  }
+  // Standard Postgres (Docker, Supabase, Railway, local) — pg adapter
+  const adapter = new PrismaPg({ connectionString: url })
   return new PrismaClient({ adapter })
 }
 

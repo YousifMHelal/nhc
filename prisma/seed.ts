@@ -6,13 +6,21 @@
 import 'dotenv/config'
 import { neonConfig } from '@neondatabase/serverless'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import ws from 'ws'
 
-neonConfig.webSocketConstructor = ws
+const url = process.env.DATABASE_URL!
+let prisma: PrismaClient
 
-const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! })
-const prisma = new PrismaClient({ adapter })
+if (url.includes('neon.tech') || url.includes('.neon.')) {
+  neonConfig.webSocketConstructor = ws
+  const adapter = new PrismaNeon({ connectionString: url })
+  prisma = new PrismaClient({ adapter })
+} else {
+  const adapter = new PrismaPg({ connectionString: url })
+  prisma = new PrismaClient({ adapter })
+}
 
 // ─── Enum adapters (mock string values → Prisma enum names) ──────────────────
 
