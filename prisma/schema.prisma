@@ -1,0 +1,425 @@
+// NHC CRM — Prisma schema (Prisma 7 + Neon serverless)
+// Models mirror lib/types.ts so the mock→DB swap is a data-boundary-only change.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Channel {
+  SMS
+  WhatsApp
+  Email
+  Web
+  Social
+}
+
+enum PipelineStage {
+  New
+  Contacted
+  Qualified
+  Proposal
+  ClosedWon  @map("Closed Won")
+  ClosedLost @map("Closed Lost")
+}
+
+enum CustomerSegment {
+  VIP
+  Standard
+  AtRisk @map("At-Risk")
+  New
+}
+
+enum LeadSource {
+  Web
+  Social
+  Referral
+  Exhibition
+  ColdCall  @map("Cold Call")
+  Campaign
+}
+
+enum InteractionType {
+  Call
+  Message
+  Email
+  Meeting
+  SiteVisit @map("Site Visit")
+  Document
+  System
+}
+
+enum CampaignStatus {
+  Draft
+  Scheduled
+  Active
+  Paused
+  Completed
+}
+
+enum JourneyStatus {
+  Draft
+  Active
+  Paused
+  Completed
+}
+
+enum JourneyNodeType {
+  trigger
+  action
+  condition
+  delay
+}
+
+enum TicketSeverity {
+  Critical
+  High
+  Medium
+  Low
+}
+
+enum TicketStatus {
+  Open
+  InProgress @map("In Progress")
+  Resolved
+  Closed
+}
+
+enum SupportLevel {
+  L1
+  L2
+}
+
+enum IntegrationStatus {
+  Active
+  Warning
+  Error
+  Inactive
+}
+
+enum IntegrationType {
+  RealTime  @map("Real-time")
+  Batch
+  OnDemand  @map("On-demand")
+}
+
+enum ActivityType {
+  lead_added
+  stage_changed
+  interaction_logged
+  contract_signed
+  campaign_sent
+  ticket_created
+  score_updated
+  opportunity_created
+}
+
+enum LeadGrade {
+  A
+  B
+  C
+  D
+}
+
+enum ContractStatus {
+  Draft
+  Signed
+  Active
+  Completed
+  Cancelled
+}
+
+enum RequestStatus {
+  Open
+  InProgress @map("In Progress")
+  Resolved
+  Closed
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model SalesRep {
+  id             String  @id @default(cuid())
+  nameAr         String
+  email          String  @unique
+  phone          String
+  avatarInitials String
+  leadsCount     Int     @default(0)
+  conversions    Int     @default(0)
+  revenue        Float   @default(0)
+  rank           Int     @default(0)
+  region         String
+
+  leads         Lead[]
+  opportunities Opportunity[]
+  interactions  Interaction[]
+  activities    Activity[]  @relation("SalesRepActivities")
+
+  @@map("sales_reps")
+}
+
+model Customer {
+  id               String          @id @default(cuid())
+  nameAr           String
+  nic              String          @unique
+  phone            String
+  email            String          @unique
+  segment          CustomerSegment
+  city             String
+  propertyInterest String
+  aiScore          Int             @default(0)
+  salesRepId       String
+  address          String?
+  nationality      String
+  createdAt        DateTime        @default(now())
+
+  leads          Lead[]
+  opportunities  Opportunity[]
+  contracts      Contract[]
+  requests       Request[]
+  interactions   Interaction[]
+  timelineEvents TimelineEvent[]
+  activities     Activity[]
+
+  @@map("customers")
+}
+
+model Lead {
+  id               String        @id @default(cuid())
+  customerId       String?
+  nameAr           String
+  phone            String
+  email            String?
+  source           LeadSource
+  channel          Channel
+  stage            PipelineStage
+  aiScore          Int           @default(0)
+  salesRepId       String
+  propertyInterest String
+  city             String
+  lastContactDate  DateTime
+  notes            String?
+  budget           Float?
+  createdAt        DateTime      @default(now())
+
+  salesRep  SalesRep   @relation(fields: [salesRepId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  leadScore LeadScore?
+
+  @@map("leads")
+}
+
+model Opportunity {
+  id                String   @id @default(cuid())
+  customerId        String
+  titleAr           String
+  project           String
+  unitType          String
+  unitId            String?
+  valueRiyal        Float
+  // OpportunityStage has Arabic values; stored as plain String
+  stage             String
+  probability       Int
+  expectedCloseDate DateTime
+  salesRepId        String
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  customer  Customer    @relation(fields: [customerId], references: [id])
+  salesRep  SalesRep    @relation(fields: [salesRepId], references: [id])
+  contracts Contract[]
+
+  @@map("opportunities")
+}
+
+model Contract {
+  id            String         @id @default(cuid())
+  customerId    String
+  opportunityId String
+  project       String
+  unitId        String
+  unitType      String
+  valueRiyal    Float
+  status        ContractStatus
+  signedDate    DateTime?
+  startDate     DateTime
+  endDate       DateTime?
+  paymentPlan   String
+
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@map("contracts")
+}
+
+model Request {
+  id            String        @id @default(cuid())
+  customerId    String
+  type          String
+  descriptionAr String
+  status        RequestStatus
+  priority      TicketSeverity
+  assignedTo    String?
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("requests")
+}
+
+model Interaction {
+  id         String  @id @default(cuid())
+  customerId String
+  type       InteractionType
+  // Channel | 'Meeting' | 'System' — use String
+  channel    String
+  date       DateTime
+  note       String
+  salesRepId String?
+  duration   Int?
+
+  customer Customer  @relation(fields: [customerId], references: [id])
+  salesRep SalesRep? @relation(fields: [salesRepId], references: [id])
+
+  @@map("interactions")
+}
+
+model TimelineEvent {
+  id            String   @id @default(cuid())
+  customerId    String
+  entityType    String
+  entityId      String
+  titleAr       String
+  descriptionAr String
+  date          DateTime
+  // InteractionType | 'opportunity' | 'contract' | … — use String
+  type          String
+  channel       String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("timeline_events")
+}
+
+model LeadScore {
+  id         String    @id @default(cuid())
+  leadId     String    @unique
+  totalScore Int
+  maxScore   Int
+  grade      LeadGrade
+  // LeadScoreFactor[] stored as JSON
+  factors    Json
+  trend      String
+  // String[] stored as JSON
+  topFactors Json
+  updatedAt  DateTime  @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@map("lead_scores")
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  nameAr          String
+  type            String
+  descriptionAr   String
+  // Channel[] as JSON
+  channels        Json
+  // CampaignAudience as JSON
+  audience        Json
+  // MessageTemplate as JSON
+  messageTemplate Json
+  // CampaignSchedule as JSON
+  schedule        Json
+  status          CampaignStatus
+  // CampaignMetrics as JSON
+  metrics         Json
+  createdBy       String
+  createdAt       DateTime       @default(now())
+
+  @@map("campaigns")
+}
+
+model Journey {
+  id             String        @id @default(cuid())
+  nameAr         String
+  descriptionAr  String?
+  status         JourneyStatus
+  // JourneyNode[] as JSON
+  nodes          Json
+  // JourneyEdge[] as JSON
+  edges          Json
+  trigger        String
+  activatedAt    DateTime?
+  enrolledCount  Int           @default(0)
+  completedCount Int           @default(0)
+  createdAt      DateTime      @default(now())
+
+  @@map("journeys")
+}
+
+model Ticket {
+  id            String         @id @default(cuid())
+  titleAr       String
+  descriptionAr String
+  severity      TicketSeverity
+  status        TicketStatus
+  level         SupportLevel
+  assignedTo    String
+  customerId    String?
+  slaDeadline   DateTime
+  slaHours      Int
+  // TicketStep[] as JSON
+  steps         Json
+  rcaLink       String?
+  // EscalationEntry[] as JSON
+  escalationHistory Json
+  // TicketComment[] as JSON
+  comments      Json
+  createdAt     DateTime       @default(now())
+  resolvedAt    DateTime?
+
+  @@map("tickets")
+}
+
+model Integration {
+  id          String            @id @default(cuid())
+  nameAr      String
+  nameEn      String            @unique
+  category    String
+  type        IntegrationType
+  status      IntegrationStatus
+  lastSync    DateTime
+  recordCount Int               @default(0)
+  // AuditLogEntry[] as JSON
+  auditLog    Json
+  description String?
+
+  @@map("integrations")
+}
+
+model Activity {
+  id             String       @id @default(cuid())
+  type           ActivityType
+  titleAr        String
+  descriptionAr  String
+  entityId       String
+  entityType     String
+  date           DateTime
+  salesRepId     String?
+  customerId     String?
+  customerNameAr String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  salesRep SalesRep? @relation(fields: [salesRepId], references: [id], name: "SalesRepActivities")
+
+  @@map("activities")
+}
