@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Cairo } from 'next/font/google'
-import { AppShell } from '@/components/layout/app-shell'
+import { ConditionalShell } from '@/components/layout/conditional-shell'
 import './globals.css'
 
 const cairo = Cairo({
@@ -23,7 +23,7 @@ export default function RootLayout({
       className={`${cairo.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <ConditionalShell>{children}</ConditionalShell>
       </body>
     </html>
   )
