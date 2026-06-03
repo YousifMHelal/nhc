@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Phone, Mail, MapPin, Building2, User,
   PhoneCall, MessageSquare, MailIcon, Calendar,
   FileText, Zap, ShoppingBag, Award, ChevronDown, Plus, X,
+  Brain, CheckCircle2, XCircle, Home, Star, ArrowRight,
+  BadgeCheck, AlertTriangle, ShieldCheck,
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -13,9 +15,11 @@ import { StatusPill } from '@/components/shared/status-pill'
 import { ScoreRing } from '@/components/shared/score-ring'
 import { TimelineItemSkeleton } from '@/components/shared/skeleton-card'
 import { toast } from 'sonner'
-import type { TimelineEvent, Customer, Opportunity, Contract } from '@/lib/types'
+import type { TimelineEvent, Customer, Opportunity, Contract, Unit } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
 import { scoreLead } from '@/lib/ai/leadScore'
+import { computeHousingEligibility } from '@/lib/ai/housingEligibility'
+import { recommendUnits } from '@/lib/ai/unitRecommendation'
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; bgClass: string; colorClass: string; labelAr: string }> = {
   Call:        { icon: PhoneCall,    bgClass: 'bg-blue-100',   colorClass: 'text-blue-600',   labelAr: 'مكالمة' },
@@ -49,6 +53,7 @@ const TABS = [
   { id: 'profile',      labelAr: 'الملف' },
   { id: 'campaigns',    labelAr: 'الحملات' },
   { id: 'requests',     labelAr: 'الطلبات' },
+  { id: 'ai-analysis',  labelAr: 'تحليل الذكاء الاصطناعي' },
 ]
 
 const CHANNELS = ['واتساب', 'مكالمة', 'بريد إلكتروني', 'اجتماع', 'زيارة موقع']
@@ -162,9 +167,10 @@ interface Props {
   allTimeline: TimelineEvent[]
   allOpportunities: Opportunity[]
   allContracts: Contract[]
+  availableUnits: Unit[]
 }
 
-export function Customer360Client({ customers, allTimeline, allOpportunities, allContracts }: Props) {
+export function Customer360Client({ customers, allTimeline, allOpportunities, allContracts, availableUnits }: Props) {
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? '')
   const [activeTab, setActiveTab] = useState('timeline')
   const [activeFilter, setActiveFilter] = useState('')
@@ -185,6 +191,27 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
   if (!customer) return null
 
   const REPS = ['خالد الشمري', 'نورة الغامدي', 'فيصل العنزي', 'سارة القرشي', 'رشيد الزهراني']
+
+  // ── AI Pipeline (recomputed when customer changes) ───────────────────────
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const aiPipeline = useMemo(() => {
+    const aiLead = {
+      id: customer.id, source: 'Referral' as const, channel: 'WhatsApp' as const,
+      propertyInterest: customer.propertyInterest, city: customer.city,
+      budget: undefined, email: customer.email, lastContactDate: new Date().toISOString(),
+      createdAt: customer.createdAt, stage: 'Qualified' as const, aiScore: customer.aiScore,
+      salesRepId: customer.salesRepId, nameAr: customer.nameAr, phone: customer.phone,
+      nationality: customer.nationality,
+    }
+    const hasActiveContract = contracts.length > 0
+    return {
+      leadScore: scoreLead(aiLead),
+      eligibility: computeHousingEligibility(customer, hasActiveContract),
+      unitRecs: recommendUnits(customer, availableUnits),
+    }
+  // contracts changes when customer changes; we want this to stay stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer.id, availableUnits])
 
   return (
     <div className="flex flex-col gap-5">
@@ -485,6 +512,247 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                     <p className="text-xs text-muted-foreground mt-0.5">{e.descriptionAr}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* AI Analysis tab — three-stage pipeline */}
+            {activeTab === 'ai-analysis' && (
+              <div className="flex flex-col gap-6">
+
+                {/* Pipeline header */}
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-violet-100">
+                    <Brain className="size-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">تحليل الذكاء الاصطناعي المتكامل</h3>
+                    <p className="text-xs text-muted-foreground">ثلاث مراحل متسلسلة — أهلية الإسكان ← نقاط الصفقة ← توصية الوحدة</p>
+                  </div>
+                </div>
+
+                {/* Pipeline flow indicator */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                  {[
+                    { label: 'أهلية الإسكان', score: aiPipeline.eligibility.score, color: 'bg-blue-500' },
+                    { label: 'احتمالية الإغلاق', score: aiPipeline.leadScore.score, color: 'bg-amber-500' },
+                    { label: 'توصية الوحدة', score: aiPipeline.unitRecs.recommendations[0]?.matchScore ?? 0, color: 'bg-emerald-500' },
+                  ].map((step, i) => (
+                    <div key={i} className="flex items-center gap-1 shrink-0">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={cn('flex size-8 items-center justify-center rounded-full text-white text-xs font-bold', step.color)}>
+                          {toAr(i + 1)}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{step.label}</span>
+                        <span className={cn('text-xs font-bold', step.score >= 80 ? 'text-success' : step.score >= 55 ? 'text-amber-500' : 'text-danger')}>
+                          {toAr(step.score)}٪
+                        </span>
+                      </div>
+                      {i < 2 && <ArrowRight className="size-4 text-muted-foreground shrink-0 -mt-4 mx-1" />}
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Stage 1: Housing Eligibility ─────────────────────── */}
+                <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-blue-100">
+                        <ShieldCheck className="size-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-blue-900">المرحلة الأولى: أهلية الإسكان</h4>
+                        <p className="text-xs text-blue-600">تحديد البرامج الحكومية المناسبة</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={cn(
+                        'rounded-full px-3 py-1 text-xs font-bold border',
+                        aiPipeline.eligibility.tier === 'مؤهل كامل' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        aiPipeline.eligibility.tier === 'مؤهل جزئي' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                        'bg-red-100 text-red-700 border-red-200'
+                      )}>
+                        {aiPipeline.eligibility.tier}
+                      </span>
+                      <span className="text-2xl font-extrabold text-blue-700">{toAr(aiPipeline.eligibility.score)}٪</span>
+                    </div>
+                  </div>
+
+                  {/* Eligibility factors */}
+                  <div className="grid grid-cols-1 gap-2 mb-4">
+                    {aiPipeline.eligibility.factors.map((factor, i) => (
+                      <div key={i} className="flex items-start gap-2.5 rounded-lg bg-white/70 border border-blue-100 px-3 py-2">
+                        {factor.met
+                          ? <CheckCircle2 className="size-4 shrink-0 text-emerald-500 mt-0.5" />
+                          : <XCircle className="size-4 shrink-0 text-red-400 mt-0.5" />
+                        }
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-foreground">{factor.labelAr}</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{factor.descriptionAr}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Eligible programs */}
+                  {aiPipeline.eligibility.programs.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-blue-800 mb-2">البرامج المتاحة:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {aiPipeline.eligibility.programs.map((prog) => (
+                          <span key={prog} className="flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 border border-blue-200">
+                            <BadgeCheck className="size-3" />
+                            {prog}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommendation */}
+                  <div className="rounded-lg bg-blue-100/60 border border-blue-200 px-3 py-2.5">
+                    <p className="text-xs text-blue-800 leading-relaxed">{aiPipeline.eligibility.recommendationAr}</p>
+                  </div>
+                </div>
+
+                {/* ── Stage 2: Lead Score ──────────────────────────────── */}
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100">
+                        <Star className="size-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-amber-900">المرحلة الثانية: تقييم الصفقة</h4>
+                        <p className="text-xs text-amber-600">احتمالية إغلاق الصفقة بناءً على ملف العميل</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={cn(
+                        'rounded-full px-3 py-1 text-xs font-bold border',
+                        aiPipeline.leadScore.tier === 'A' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        aiPipeline.leadScore.tier === 'B' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                        aiPipeline.leadScore.tier === 'C' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                        'bg-red-100 text-red-700 border-red-200'
+                      )}>
+                        الدرجة {aiPipeline.leadScore.tier}
+                      </span>
+                      <span className="text-2xl font-extrabold text-amber-700">{toAr(aiPipeline.leadScore.score)}/١٠٠</span>
+                    </div>
+                  </div>
+
+                  {/* Probability bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-muted-foreground">احتمالية التحويل</span>
+                      <span className="font-bold text-amber-700">{toAr(Math.round(aiPipeline.leadScore.probability * 100))}٪</span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-amber-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-amber-500 transition-all duration-700"
+                        style={{ width: `${Math.round(aiPipeline.leadScore.probability * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Top factors */}
+                  <div className="space-y-2 mb-3">
+                    {aiPipeline.leadScore.topFactors.map((factor, i) => (
+                      <div key={i} className="flex items-center justify-between rounded-lg bg-white/70 border border-amber-100 px-3 py-2">
+                        <span className="text-xs text-foreground">{factor.labelAr}</span>
+                        <span className={cn(
+                          'text-xs font-bold',
+                          factor.contribution > 0 ? 'text-emerald-600' : 'text-red-500'
+                        )}>
+                          {factor.contribution > 0 ? '+' : ''}{toAr(Math.round(factor.contribution))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg bg-amber-100/60 border border-amber-200 px-3 py-2.5">
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      {aiPipeline.leadScore.tier === 'A'
+                        ? 'عميل ذو أولوية عالية — يُنصح بالتواصل الفوري وتسريع دورة المبيعات.'
+                        : aiPipeline.leadScore.tier === 'B'
+                        ? 'عميل واعد — تابع معه بانتظام وقدّم له عروضاً مخصصة.'
+                        : aiPipeline.leadScore.tier === 'C'
+                        ? 'عميل متوسط — استمر في التفاعل وحاول تحسين نقاط الضعف.'
+                        : 'عميل ذو أولوية منخفضة — ضعه في قائمة المتابعة الدورية.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── Stage 3: Unit Recommendations ───────────────────── */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100">
+                      <Home className="size-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-emerald-900">المرحلة الثالثة: توصية الوحدات</h4>
+                      <p className="text-xs text-emerald-600">الوحدات الأنسب للعميل مرتبة حسب درجة التطابق</p>
+                    </div>
+                  </div>
+
+                  {aiPipeline.unitRecs.recommendations.length === 0 ? (
+                    <div className="flex items-center gap-2 rounded-lg bg-white/70 border border-emerald-100 px-4 py-6 text-center justify-center">
+                      <AlertTriangle className="size-4 text-amber-500" />
+                      <p className="text-sm text-muted-foreground">لا توجد وحدات متاحة تناسب ملف العميل حالياً</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {aiPipeline.unitRecs.recommendations.map((rec) => (
+                        <div key={rec.unit.id} className="rounded-lg bg-white/80 border border-emerald-100 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold shrink-0">
+                                  {toAr(rec.rank)}
+                                </span>
+                                <p className="text-sm font-bold text-foreground">{rec.unit.project}</p>
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                  {rec.unit.unitType}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground font-inter">{rec.unit.id} · {rec.unit.city} · {rec.unit.bedrooms} غرف · {toAr(rec.unit.area)} م²</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={cn(
+                                'text-sm font-extrabold',
+                                rec.matchScore >= 80 ? 'text-emerald-600' : rec.matchScore >= 55 ? 'text-amber-500' : 'text-muted-foreground'
+                              )}>
+                                {toAr(rec.matchScore)}٪
+                              </span>
+                              <span className="text-xs font-bold text-foreground">{(rec.unit.priceRiyal / 1_000_000).toFixed(2)} م ريال</span>
+                            </div>
+                          </div>
+
+                          {/* Match reasons */}
+                          <div className="mt-2.5 space-y-1">
+                            {rec.matchReasons.map((reason, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                <span className="mt-1 size-1 rounded-full bg-emerald-400 shrink-0" />
+                                {reason}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Unit features */}
+                          {rec.unit.features.length > 0 && (
+                            <div className="mt-2.5 flex flex-wrap gap-1.5">
+                              {rec.unit.features.map((feat) => (
+                                <span key={feat} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                  {feat}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
           </div>

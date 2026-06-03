@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDroppable, useDraggable, type DragEndEvent, type DragStartEvent,
@@ -48,6 +48,32 @@ const INTERESTS = ['فيلا', 'شقة', 'تاون هاوس', 'دوبلكس', '�
 const CITIES = ['الرياض', 'جدة', 'الدمام', 'مكة المكرمة', 'المدينة المنورة', 'الطائف', 'أبها', 'تبوك', 'الخبر']
 
 const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
+
+// ── Stage persistence (mock-only, no backend) ────────────────────────────────
+// We persist a map of leadId → stage so drag-and-drop moves survive a refresh.
+// The mock data stays the source of truth; only the user's moves are overlaid.
+
+const STAGE_STORE_KEY = 'nhc.pipeline.stageOverrides'
+
+function loadStageOverrides(): Record<string, PipelineStage> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(STAGE_STORE_KEY)
+    return raw ? (JSON.parse(raw) as Record<string, PipelineStage>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveStageOverride(leadId: string, stage: PipelineStage) {
+  if (typeof window === 'undefined') return
+  try {
+    const next = { ...loadStageOverrides(), [leadId]: stage }
+    window.localStorage.setItem(STAGE_STORE_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
 
 // ── AI Score badge (purple, hover → top-3 factors) ──────────────────────────
 
@@ -366,6 +392,13 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
   const [filterRep, setFilterRep] = useState('')
   const [isLoading] = useState(false)
 
+  // Reapply persisted drag-and-drop moves after the initial (server) render.
+  useEffect(() => {
+    const overrides = loadStageOverrides()
+    if (Object.keys(overrides).length === 0) return
+    setLeads((prev) => prev.map((l) => (overrides[l.id] ? { ...l, stage: overrides[l.id] } : l)))
+  }, [])
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const activeLead = activeId ? leads.find((l) => l.id === activeId) : null
 
@@ -395,6 +428,7 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
     const lead = leads.find((l) => l.id === leadId)
     if (!lead || lead.stage === targetStage) return
     setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, stage: targetStage } : l))
+    saveStageOverride(leadId, targetStage)
     toast.success(`تم نقل ${lead.nameAr} إلى "${STAGE_LABEL_AR[targetStage]}"`)
   }, [leads])
 

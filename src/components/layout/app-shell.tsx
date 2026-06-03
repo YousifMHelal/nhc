@@ -68,13 +68,25 @@ export function AppShell({ children }: AppShellProps) {
   if (!isAuthed) return null
 
   return (
-    <div className="flex min-h-dvh bg-bg-page">
-      <Sidebar
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-        collapsed={collapsed}
-        onToggleCollapse={toggleCollapse}
-      />
+    <div className="flex h-dvh overflow-hidden bg-bg-page">
+      {/* Full-height sidebar column — pinned to the viewport, never scrolls away */}
+      <div className="hidden md:block h-full shrink-0" style={{ width: collapsed ? '4rem' : '15rem' }}>
+        <Sidebar
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapse}
+        />
+      </div>
+      {/* Mobile sidebar — no wrapper needed, it's fixed/off-canvas */}
+      <div className="md:hidden">
+        <Sidebar
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapse}
+        />
+      </div>
 
       {/* Content area — flexes to fill remaining space */}
       <div className="flex flex-1 flex-col min-w-0 transition-[margin] duration-200 ease-in-out">

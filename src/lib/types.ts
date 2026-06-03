@@ -370,6 +370,74 @@ export interface Integration {
   description?: string
 }
 
+// ─── Unit Inventory ───────────────────────────────────────────────────────────
+
+export type UnitStatus = 'Available' | 'Reserved' | 'Sold' | 'Under Construction'
+
+export interface Unit {
+  id: string
+  project: string
+  unitType: string
+  bedrooms: number
+  area: number           // sqm
+  floorLevel: number
+  priceRiyal: number
+  city: string
+  status: UnitStatus
+  features: string[]     // e.g. ['مسبح', 'حديقة', 'موقف مزدوج']
+  deliveryDate: string   // ISO
+}
+
+// ─── Housing Eligibility ──────────────────────────────────────────────────────
+
+export type EligibilityProgram =
+  | 'سكني'
+  | 'وافي'
+  | 'صندوق التنمية العقارية'
+  | 'القرض العقاري المدعوم'
+  | 'دعم الإيجار'
+
+export interface EligibilityFactor {
+  labelAr: string
+  met: boolean
+  descriptionAr: string
+}
+
+export interface HousingEligibilityResult {
+  customerId: string
+  eligible: boolean
+  score: number                    // 0–100
+  tier: 'مؤهل كامل' | 'مؤهل جزئي' | 'غير مؤهل'
+  programs: EligibilityProgram[]
+  factors: EligibilityFactor[]
+  recommendationAr: string
+  scoredAt: string
+}
+
+// ─── Unit Recommendation ──────────────────────────────────────────────────────
+
+export interface UnitRecommendation {
+  unit: Unit
+  matchScore: number               // 0–100
+  matchReasons: string[]           // Arabic bullet points
+  rank: number
+}
+
+export interface UnitRecommendationResult {
+  customerId: string
+  recommendations: UnitRecommendation[]
+  scoredAt: string
+}
+
+// ─── Combined AI Pipeline ─────────────────────────────────────────────────────
+
+export interface AIAnalysisPipeline {
+  customerId: string
+  leadScore: AIScoreResult
+  eligibility: HousingEligibilityResult
+  unitRecs: UnitRecommendationResult
+}
+
 // ─── Analytics & Reporting ────────────────────────────────────────────────────
 
 export interface FunnelStage {
