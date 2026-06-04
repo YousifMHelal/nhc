@@ -6,7 +6,7 @@ export async function GET() {
     const campaigns = await getCampaigns()
     return NextResponse.json(campaigns)
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -16,6 +16,6 @@ export async function POST(req: Request) {
     const campaign = await createCampaign(body)
     return NextResponse.json(campaign, { status: 201 })
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

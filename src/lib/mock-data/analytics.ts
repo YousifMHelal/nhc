@@ -48,11 +48,11 @@ export const REVENUE_TREND = [
 
 export const SPRINT_INFO = {
   sprintNumber: 14,
-  sprintNameAr: 'سبرينت ١٤ — تحسين تجربة المستخدم',
-  startDate: '2026-05-26T00:00:00Z',
-  endDate: '2026-06-09T00:00:00Z',
+  sprintNameAr: " تحسين تجربة المستخدم",
+  startDate: "2026-05-26T00:00:00Z",
+  endDate: "2026-06-09T00:00:00Z",
   daysRemaining: 6,
   totalTasks: 24,
   completedTasks: 17,
   progressPercent: 71,
-}
+};

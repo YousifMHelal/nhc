@@ -46,3 +46,6 @@ next-env.d.ts
 /specs
 
 /src/generated/prisma
+
+# DB data backups
+prisma/backup-*.json

@@ -368,6 +368,7 @@ export interface Integration {
   recordCount: number
   auditLog: AuditLogEntry[]
   description?: string
+  endpoint?: string
 }
 
 // ─── Unit Inventory ───────────────────────────────────────────────────────────

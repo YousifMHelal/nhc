@@ -3,17 +3,18 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   AlertTriangle, Clock, Plus, X, CheckCircle,
-  ArrowUpRight, ExternalLink, ChevronUp, ChevronsUpDown,
-  ArrowUp, ArrowDown, BarChart3,
+  ArrowUpRight, ExternalLink, ChevronsUpDown,
+  ArrowUp, ArrowDown, BarChart3, Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { StatusPill } from '@/components/shared/status-pill'
-import { SALES_REPS, getSalesRepById, SPRINT_INFO } from '@/lib/mock-data'
+import { SALES_REPS, getSalesRepById } from '@/lib/mock-data'
 import { toast } from 'sonner'
 import type { Ticket, TicketStatus, TicketSeverity, SupportLevel } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { SupportPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -89,8 +90,8 @@ function Modal({ open, onClose, children, maxWidth = 'max-w-2xl' }: { open: bool
 
 // ─── Ticket Detail Modal ──────────────────────────────────────────────────────
 
-function TicketDetailModal({ ticket, onClose, onStatusChange, onEscalate }:
-  { ticket: Ticket; onClose: () => void; onStatusChange: (id: string, s: TicketStatus) => void; onEscalate: (id: string) => void }) {
+function TicketDetailModal({ ticket, onClose, onStatusChange, onEscalate, onDelete }:
+  { ticket: Ticket; onClose: () => void; onStatusChange: (id: string, s: TicketStatus) => void; onEscalate: (id: string) => void; onDelete: (id: string) => void }) {
   const rep = getSalesRepById(ticket.assignedTo)
   return (
     <div className="flex flex-col">
@@ -110,7 +111,7 @@ function TicketDetailModal({ ticket, onClose, onStatusChange, onEscalate }:
       <div className="p-6 flex flex-col gap-6">
         <div className="rounded-lg bg-muted/50 p-4"><p className="text-sm leading-relaxed">{ticket.descriptionAr}</p></div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div><p className="text-xs text-muted-foreground mb-1">مسند إلى</p><p className="text-sm font-medium">{rep?.nameAr ?? ticket.assignedTo}</p></div>
           <div><p className="text-xs text-muted-foreground mb-1">مهلة SLA</p><SlaTimer deadline={ticket.slaDeadline} status={ticket.status} /></div>
           <div><p className="text-xs text-muted-foreground mb-1">تاريخ الإنشاء</p><p className="text-sm font-medium font-inter">{new Date(ticket.createdAt).toLocaleDateString('ar-SA',{year:'numeric',month:'short',day:'numeric'})}</p></div>
@@ -181,12 +182,18 @@ function TicketDetailModal({ ticket, onClose, onStatusChange, onEscalate }:
               {STATUS_AR[s]}
             </button>
           ))}
-          {ticket.level === 'L1' && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
-            <Button size="sm" variant="outline" className="ms-auto gap-1.5 text-danger border-danger/30 hover:bg-danger/5"
-              onClick={() => { onEscalate(ticket.id); onClose() }}>
-              <ArrowUpRight className="size-3.5" />تصعيد إلى L2
+          <div className="ms-auto flex items-center gap-2">
+            {ticket.level === 'L1' && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
+              <Button size="sm" variant="outline" className="gap-1.5 text-danger border-danger/30 hover:bg-danger/5"
+                onClick={() => { onEscalate(ticket.id); onClose() }}>
+                <ArrowUpRight className="size-3.5" />تصعيد إلى L2
+              </Button>
+            )}
+            <Button size="sm" variant="outline" className="gap-1.5 text-danger border-danger/30 hover:bg-danger/5"
+              onClick={() => onDelete(ticket.id)}>
+              <Trash2 className="size-3.5" />حذف
             </Button>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -235,7 +242,7 @@ function CreateTicketModal({ onClose, onCreate }: { onClose: () => void; onCreat
           <textarea className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             placeholder="اكتب وصفًا تفصيليًا..." value={form.descriptionAr} onChange={(e) => update({ descriptionAr: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">الأولوية</label>
             <div className="flex flex-wrap gap-1.5">
@@ -393,6 +400,17 @@ export default function SupportPage() {
     }
   }, [])
 
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/tickets/${id}`, { method: 'DELETE' })
+      setTickets((prev) => prev.filter((t) => t.id !== id))
+      setSelected(null)
+      toast.success('تم حذف التذكرة')
+    } catch {
+      toast.error('فشل حذف التذكرة')
+    }
+  }, [])
+
   const handleEscalate = useCallback(async (id: string) => {
     const now = new Date().toISOString()
     const ticket = tickets.find((t) => t.id === id)
@@ -420,9 +438,7 @@ export default function SupportPage() {
     return sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
-  )
+  if (loading) return <SupportPageSkeleton />
 
   return (
     <div className="flex flex-col gap-6">
@@ -438,7 +454,7 @@ export default function SupportPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { labelAr: 'مفتوحة', value: openCount, color: 'text-sky-600 bg-sky-50' },
           { labelAr: 'قيد التنفيذ', value: inProgCount, color: 'text-amber-600 bg-amber-50' },
@@ -453,7 +469,7 @@ export default function SupportPage() {
       </div>
 
       {/* Sort + Severity filters */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-wrap">
         {/* Sort buttons */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">ترتيب:</span>
@@ -508,26 +524,33 @@ export default function SupportPage() {
         </div>
       )}
 
-      {/* Sprint info card */}
-      <div className="rounded-xl border border-border bg-card p-5 mt-2">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="size-4 text-accent-support" />
-            <h3 className="text-sm font-semibold">{SPRINT_INFO.sprintNameAr}</h3>
+      {/* Ticket resolution summary card */}
+      {tickets.length > 0 && (() => {
+        const resolved = tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length
+        const total = tickets.length
+        const pct = total > 0 ? Math.round((resolved / total) * 100) : 0
+        return (
+          <div className="rounded-xl border border-border bg-card p-5 mt-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="size-4 text-accent-support" />
+                <h3 className="text-sm font-semibold">تحسين تجربة المستخدم</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{toAr(resolved)} من {toAr(total)} تذكرة مُحلَّة</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Progress value={pct} className="flex-1 h-2.5" />
+              <span className="text-sm font-bold text-accent-support font-inter">{toAr(pct)}٪</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{toAr(resolved)} من {toAr(total)} تذكرة مكتملة</p>
           </div>
-          <span className="text-xs text-muted-foreground">يوم {toAr(10 - SPRINT_INFO.daysRemaining)}/١٠ · {toAr(SPRINT_INFO.daysRemaining)} أيام متبقية</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Progress value={SPRINT_INFO.progressPercent} className="flex-1 h-2.5" />
-          <span className="text-sm font-bold text-accent-support font-inter">{toAr(SPRINT_INFO.progressPercent)}٪</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">{SPRINT_INFO.completedTasks} من {SPRINT_INFO.totalTasks} مهمة مكتملة</p>
-      </div>
+        )
+      })()}
 
       {/* Ticket detail */}
       <Modal open={selected !== null} onClose={() => setSelected(null)}>
         {selected && <TicketDetailModal ticket={selected} onClose={() => setSelected(null)}
-          onStatusChange={handleStatusChange} onEscalate={handleEscalate} />}
+          onStatusChange={handleStatusChange} onEscalate={handleEscalate} onDelete={handleDelete} />}
       </Modal>
 
       {/* Create ticket */}

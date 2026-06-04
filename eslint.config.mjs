@@ -1,6 +1,7 @@
 import tsPlugin from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
 import nextPlugin from '@next/eslint-plugin-next'
+import reactHooks from 'eslint-plugin-react-hooks'
 
 const physicalDirPatterns = [
   { pattern: /\bpl-/, label: 'pl-' },
@@ -76,6 +77,7 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       '@next/next': nextPlugin,
+      'react-hooks': reactHooks,
       'nhc-rtl': nhcRtlPlugin,
     },
     languageOptions: {
@@ -89,6 +91,12 @@ export default [
     rules: {
       ...tsPlugin.configs.recommended.rules,
       ...nextPlugin.configs.recommended.rules,
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       'nhc-rtl/no-physical-dir': 'error',
     },
   },

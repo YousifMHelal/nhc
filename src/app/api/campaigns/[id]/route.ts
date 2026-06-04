@@ -8,6 +8,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const campaign = await updateCampaign(id, body)
     return NextResponse.json(campaign)
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

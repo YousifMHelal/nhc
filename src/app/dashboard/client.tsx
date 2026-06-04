@@ -20,8 +20,11 @@ interface KpiData {
   conversionRate: number
   conversionRateGrowth: number
   openOpportunities: number
+  openOpportunitiesValue: number
   campaignPerformance: number
   campaignPerformanceGrowth: number
+  revenueThisMonth?: number
+  revenueGrowth?: number
 }
 
 interface Props {
@@ -73,6 +76,9 @@ export function DashboardClient({ kpi, funnelStages, activities }: Props) {
   const router = useRouter()
   const funnelMax = funnelStages[0]?.count ?? 1
 
+  const openOppsCount = kpi.openOpportunities
+  const followUpCount = Math.min(openOppsCount, 9)
+
   return (
     <div className="space-y-6">
 
@@ -86,9 +92,13 @@ export function DashboardClient({ kpi, funnelStages, activities }: Props) {
             <Clock className="size-3.5 shrink-0" />
             <span>{todayAr()}</span>
           </div>
-          <p className="text-sm text-white/75 mt-1">
-            لديك <span className="text-brand-accent font-semibold">٣ فرص</span> تحتاج متابعة اليوم
-          </p>
+          {followUpCount > 0 ? (
+            <p className="text-sm text-white/75 mt-1">
+              لديك <span className="text-brand-accent font-semibold">{toAr(followUpCount)} فرص</span> تحتاج متابعة اليوم
+            </p>
+          ) : (
+            <p className="text-sm text-white/75 mt-1">لا توجد فرص معلقة اليوم</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -130,43 +140,41 @@ export function DashboardClient({ kpi, funnelStages, activities }: Props) {
           <div className="cursor-pointer" onClick={() => router.push('/pipeline')} title="انتقل إلى خط المبيعات">
             <KpiCard
               labelAr="إجمالي العملاء المحتملين"
-              value={(1284).toLocaleString('ar-SA')}
+              value={kpi.totalLeads.toLocaleString('ar-SA')}
               growth={kpi.totalLeadsGrowth}
               icon={Users}
               accentClass="text-brand"
               accentBgClass="bg-brand/10"
               accentBarClass="bg-brand"
-              tooltip="مقارنة بـ ١٠٨٨ الشهر الماضي"
             />
           </div>
           <div className="cursor-pointer" onClick={() => router.push('/reports')} title="انتقل إلى التقارير">
             <KpiCard
               labelAr="معدل التحويل"
-              value="٦٨٪"
+              value={`${toAr(kpi.conversionRate)}٪`}
               growth={kpi.conversionRateGrowth}
               icon={TrendingUp}
               accentClass="text-accent-pipeline"
               accentBgClass="bg-success-bg"
               accentBarClass="bg-accent-pipeline"
-              tooltip="مقارنة بـ ٦٣٪ الشهر الماضي"
             />
           </div>
           <div className="cursor-pointer" onClick={() => router.push('/reports')} title="انتقل إلى التقارير">
             <KpiCard
-              labelAr="عقود نشطة"
-              value={(347).toLocaleString('ar-SA')}
-              growth={12}
+              labelAr="فرص نشطة"
+              value={kpi.openOpportunities.toLocaleString('ar-SA')}
+              growth={kpi.revenueGrowth ?? 0}
               icon={FileText}
               accentClass="text-accent-customer360"
               accentBgClass="bg-purple-bg"
               accentBarClass="bg-accent-customer360"
-              tooltip="مقارنة بـ ٣١٠ الشهر الماضي"
             />
           </div>
           <div className="cursor-pointer" onClick={() => router.push('/lead-scoring')} title="انتقل إلى تقييم العملاء">
             <KpiCard
               labelAr="دقة نموذج AI"
-              value="٩٤٪"
+              value={`${toAr(kpi.campaignPerformance)}٪`}
+              growth={kpi.campaignPerformanceGrowth}
               icon={Cpu}
               accentClass="text-purple"
               accentBgClass="bg-purple-bg"
@@ -285,10 +293,10 @@ export function DashboardClient({ kpi, funnelStages, activities }: Props) {
       {/* ── Quick-stats row ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: 'عملاء جدد اليوم',      value: '١٢',  sub: '+٣ من الأمس',   color: 'text-brand',   bg: 'bg-brand/10',     Icon: Users    },
-          { label: 'مواعيد معلقة',         value: '٥',   sub: 'هذا الأسبوع',   color: 'text-warning', bg: 'bg-warning-bg',   Icon: Calendar },
-          { label: 'صفقات في المفاوضة',    value: '٢٣',  sub: 'قيمة ١.٢م ر.س', color: 'text-info',    bg: 'bg-info-bg',      Icon: MapPin   },
-          { label: 'تذاكر مفتوحة',         value: '٧',   sub: '٢ عالية الأولوية', color: 'text-danger', bg: 'bg-error-bg', Icon: Star     },
+          { label: 'إجمالي العملاء',   value: toAr(kpi.totalLeads),             sub: `${kpi.totalLeadsGrowth >= 0 ? '+' : ''}${toAr(kpi.totalLeadsGrowth)}٪ هذا الشهر`,                              color: 'text-brand',   bg: 'bg-brand/10',   Icon: Users    },
+          { label: 'فرص نشطة',         value: toAr(kpi.openOpportunities),      sub: 'قيد المتابعة الحالية',                                                                                          color: 'text-warning', bg: 'bg-warning-bg', Icon: Calendar },
+          { label: 'معدل التحويل',     value: `${toAr(kpi.conversionRate)}٪`,   sub: 'نسبة الإغلاق الكلية',                                                                                          color: 'text-info',    bg: 'bg-info-bg',    Icon: MapPin   },
+          { label: 'أداء الحملات',     value: `${toAr(kpi.campaignPerformance)}٪`, sub: `${kpi.campaignPerformanceGrowth >= 0 ? '+' : ''}${toAr(kpi.campaignPerformanceGrowth)}٪ مقارنة بالسابق`, color: 'text-danger',  bg: 'bg-error-bg',   Icon: Star     },
         ].map((s) => (
           <div
             key={s.label}

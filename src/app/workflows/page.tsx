@@ -22,10 +22,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import type { Journey, JourneyNodeType, JourneyStatus } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { WorkflowsPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Node type meta ────────────────────────────────────────────────────────────
 
@@ -218,7 +218,7 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {[
           { labelAr: 'عدد العقد', value: toAr(nodes.length), icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
           { labelAr: 'مسجَّلون', value: toAr(journey.enrolledCount), icon: Users, color: 'text-blue-600 bg-blue-50' },
@@ -235,9 +235,9 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
       </div>
 
       {/* Canvas area */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
         {/* Left palette */}
-        <div className="w-40 shrink-0 flex flex-col gap-2 overflow-y-auto">
+        <div className="lg:w-40 shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-x-visible pb-2 lg:pb-0">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">مكتبة العقد</p>
           {(['trigger', 'action', 'condition', 'delay'] as JourneyNodeType[]).map((type) => {
             const meta = NODE_META[type]
@@ -265,7 +265,7 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
         </div>
 
         {/* ReactFlow canvas */}
-        <div className="flex-1 rounded-xl border border-border overflow-hidden bg-bg-page" ref={reactFlowWrapper}>
+        <div className="flex-1 min-h-75 lg:min-h-0 rounded-xl border border-border overflow-hidden bg-bg-page" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -292,7 +292,7 @@ function JourneyCanvas({ journey, onBack }: { journey: Journey; onBack: () => vo
         </div>
 
         {/* Right properties panel */}
-        <div className="w-52 shrink-0 flex flex-col gap-3">
+        <div className="lg:w-52 shrink-0 flex flex-col gap-3">
           {selectedNode ? (
             <>
               <div className="flex items-center justify-between">
@@ -464,9 +464,7 @@ export default function WorkflowsPage() {
 
   if (selected) return <JourneyCanvas journey={selected} onBack={() => setSelected(null)} />
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
-  )
+  if (loading) return <WorkflowsPageSkeleton />
 
   const active = journeys.filter((j) => j.status === 'Active').length
   const totalEnrolled = journeys.reduce((s, j) => s + j.enrolledCount, 0)
@@ -486,7 +484,7 @@ export default function WorkflowsPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { labelAr: 'إجمالي الرحلات', value: toAr(journeys.length), icon: GitBranch, color: 'text-accent-workflows bg-accent-workflows/10' },
             { labelAr: 'الرحلات النشطة', value: toAr(active), icon: Zap, color: 'text-emerald-600 bg-emerald-50' },
@@ -503,9 +501,24 @@ export default function WorkflowsPage() {
           })}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {journeys.map((j) => <JourneyCard key={j.id} journey={j} onSelect={setSelected} />)}
-        </div>
+        {journeys.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-96 gap-4 text-muted-foreground">
+            <div className="flex size-20 items-center justify-center rounded-full bg-accent-workflows/10">
+              <GitBranch className="size-10 text-accent-workflows/40" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground">لا توجد رحلات عملاء بعد</h2>
+              <p className="text-sm mt-1">أنشئ أول رحلة تلقائية لمتابعة عملائك المحتملين</p>
+            </div>
+            <Button className="bg-accent-workflows hover:bg-accent-workflows/90 text-white gap-1.5 mt-2" onClick={() => setDialogOpen(true)}>
+              <Plus className="size-4" />إنشاء رحلة جديدة
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {journeys.map((j) => <JourneyCard key={j.id} journey={j} onSelect={setSelected} />)}
+          </div>
+        )}
       </div>
 
       <NewJourneyDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={handleCreate} />

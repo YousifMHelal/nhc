@@ -4,7 +4,6 @@ import {
   Users,
   Star,
   Megaphone,
-  Database,
   Workflow,
   Plug,
   Headphones,

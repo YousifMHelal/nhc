@@ -6,9 +6,20 @@ import {
   useDroppable, useDraggable, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import {
-  Phone, Mail, MapPin, Building2, Calendar, User,
-  Plus, X, ChevronDown, SlidersHorizontal, Search, Star,
-} from 'lucide-react'
+  Phone,
+  Mail,
+  MapPin,
+  Building2,
+  Calendar,
+  User,
+  Plus,
+  X,
+  ChevronDown,
+  SlidersHorizontal,
+  Search,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -47,7 +58,8 @@ const CHANNELS: Channel[] = ['WhatsApp', 'SMS', 'Email', 'Web', 'Social']
 const INTERESTS = ['فيلا', 'شقة', 'تاون هاوس', 'دوبلكس', 'أرض']
 const CITIES = ['الرياض', 'جدة', 'الدمام', 'مكة المكرمة', 'المدينة المنورة', 'الطائف', 'أبها', 'تبوك', 'الخبر']
 
-const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
+const selectCls =
+  "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]";
 
 // ── Stage persistence (mock-only, no backend) ────────────────────────────────
 // We persist a map of leadId → stage so drag-and-drop moves survive a refresh.
@@ -89,7 +101,7 @@ function AIScoreBadge({ lead }: { lead: Lead }) {
         {toAr(result.score)}
       </span>
       {/* Hover tooltip — top 3 factors */}
-      <div className="pointer-events-none absolute bottom-full inset-e-0 mb-2 z-50 hidden w-52 rounded-lg border border-border bg-card shadow-md group-hover/aibadge:block p-3 text-right">
+      <div className="pointer-events-none absolute bottom-full inset-e-0 mb-2 z-50 hidden w-52 rounded-lg border border-border bg-card shadow-md group-hover/aibadge:block p-3 text-start">
         <p className="text-xs font-semibold mb-2" style={{ color: 'var(--purple)' }}>أبرز عوامل التقييم</p>
         <ul className="space-y-1.5">
           {result.topFactors.map((f, i) => (
@@ -188,27 +200,46 @@ function KanbanColumnZone({ col, leads, onSelect, isLoading }: { col: KanbanColu
 
 // ── Lead drawer ───────────────────────────────────────────────────────────────
 
-function LeadDrawer({ lead, salesReps, open, onClose }: { lead: Lead | null; salesReps: SalesRep[]; open: boolean; onClose: () => void }) {
-  const router = useRouter()
-  if (!lead) return null
-  const rep = salesReps.find((r) => r.id === lead.salesRepId)
+function LeadDrawer({
+  lead,
+  salesReps,
+  open,
+  onClose,
+  onDelete,
+}: {
+  lead: Lead | null;
+  salesReps: SalesRep[];
+  open: boolean;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}) {
+  const router = useRouter();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  if (!lead) return null;
+  const rep = salesReps.find((r) => r.id === lead.salesRepId);
   return (
     <Drawer open={open} onOpenChange={(v) => !v && onClose()} direction="left">
-      <DrawerContent className="max-w-md overflow-y-auto">
+      <DrawerContent className="max-w-md flex flex-col overflow-hidden">
         <DrawerHeader className="border-b border-border pb-4">
           <div className="flex items-center gap-3">
             <Avatar className="size-12">
-              <AvatarFallback className="bg-brand/10 text-brand text-lg font-bold">{lead.nameAr.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-brand/10 text-brand text-lg font-bold">
+                {lead.nameAr.charAt(0)}
+              </AvatarFallback>
             </Avatar>
             <div>
               <DrawerTitle>{lead.nameAr}</DrawerTitle>
-              <DrawerDescription>{lead.propertyInterest} · {lead.city}</DrawerDescription>
+              <DrawerDescription>
+                {lead.propertyInterest} · {lead.city}
+              </DrawerDescription>
             </div>
-            <div className="ms-auto"><ScoreRing score={lead.aiScore} size={64} strokeWidth={7} /></div>
+            <div className="ms-auto">
+              <ScoreRing score={lead.aiScore} size={64} strokeWidth={7} />
+            </div>
           </div>
         </DrawerHeader>
 
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-4 p-4 overflow-y-auto flex-1">
           <div className="flex flex-wrap gap-2">
             <StatusPill type="stage" value={lead.stage} />
             <Badge variant="secondary">{lead.source}</Badge>
@@ -216,24 +247,56 @@ function LeadDrawer({ lead, salesReps, open, onClose }: { lead: Lead | null; sal
           </div>
 
           <div className="rounded-lg border border-border p-4 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">معلومات التواصل</p>
-            <div className="flex items-center gap-2 text-sm"><Phone className="size-4 text-muted-foreground shrink-0" /><span>{lead.phone}</span></div>
-            {lead.email && <div className="flex items-center gap-2 text-sm"><Mail className="size-4 text-muted-foreground shrink-0" /><span className="break-all">{lead.email}</span></div>}
-            <div className="flex items-center gap-2 text-sm"><MapPin className="size-4 text-muted-foreground shrink-0" /><span>{lead.city}</span></div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              معلومات التواصل
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="size-4 text-muted-foreground shrink-0" />
+              <span>{lead.phone}</span>
+            </div>
+            {lead.email && (
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="size-4 text-muted-foreground shrink-0" />
+                <span className="break-all">{lead.email}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm">
+              <MapPin className="size-4 text-muted-foreground shrink-0" />
+              <span>{lead.city}</span>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border p-4 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">تفاصيل الاهتمام</p>
-            <div className="flex items-center gap-2 text-sm"><Building2 className="size-4 text-muted-foreground shrink-0" /><span>{lead.propertyInterest}</span></div>
-            {lead.budget && <div className="flex items-center gap-2 text-sm"><span className="size-4 text-center font-bold shrink-0">﷼</span><span>{lead.budget.toLocaleString('ar-SA')} ريال</span></div>}
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              تفاصيل الاهتمام
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <Building2 className="size-4 text-muted-foreground shrink-0" />
+              <span>{lead.propertyInterest}</span>
+            </div>
+            {lead.budget && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="size-4 text-center font-bold shrink-0">﷼</span>
+                <span>{lead.budget.toLocaleString("ar-SA")} ريال</span>
+              </div>
+            )}
           </div>
 
           {rep && (
             <div className="rounded-lg border border-border p-4 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">المندوب المسؤول</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                المندوب المسؤول
+              </p>
               <div className="flex items-center gap-2">
-                <Avatar className="size-8"><AvatarFallback className="bg-accent-pipeline/10 text-accent-pipeline text-xs font-bold">{rep.avatarInitials}</AvatarFallback></Avatar>
-                <div><p className="text-sm font-medium">{rep.nameAr}</p><p className="text-xs text-muted-foreground">{rep.region}</p></div>
+                <Avatar className="size-8">
+                  <AvatarFallback className="bg-accent-pipeline/10 text-accent-pipeline text-xs font-bold">
+                    {rep.avatarInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium">{rep.nameAr}</p>
+                  <p className="text-xs text-muted-foreground">{rep.region}</p>
+                </div>
               </div>
             </div>
           )}
@@ -241,73 +304,247 @@ function LeadDrawer({ lead, salesReps, open, onClose }: { lead: Lead | null; sal
           <div className="flex gap-4 rounded-lg border border-border p-4">
             <div className="flex-1 flex items-center gap-2 text-sm">
               <Calendar className="size-4 text-muted-foreground" />
-              <div><p className="text-xs text-muted-foreground">آخر تواصل</p><p className="font-medium">{new Date(lead.lastContactDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}</p></div>
+              <div>
+                <p className="text-xs text-muted-foreground">آخر تواصل</p>
+                <p className="font-medium">
+                  {new Date(lead.lastContactDate).toLocaleDateString("ar-SA", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
             </div>
             <div className="flex-1 flex items-center gap-2 text-sm">
               <User className="size-4 text-muted-foreground" />
-              <div><p className="text-xs text-muted-foreground">تاريخ الإضافة</p><p className="font-medium">{new Date(lead.createdAt).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}</p></div>
+              <div>
+                <p className="text-xs text-muted-foreground">تاريخ الإضافة</p>
+                <p className="font-medium">
+                  {new Date(lead.createdAt).toLocaleDateString("ar-SA", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
             </div>
           </div>
 
           {lead.notes && (
             <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">ملاحظات</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                ملاحظات
+              </p>
               <p className="text-sm leading-relaxed">{lead.notes}</p>
             </div>
           )}
 
           {/* AI score breakdown panel */}
-          {(() => {
-            const aiResult = scoreLead(lead)
-            return (
-              <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--purple)', background: 'var(--purple-bg)' }}>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--purple)' }}>تحليل الذكاء الاصطناعي</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-xs font-bold font-inter" style={{ background: 'var(--purple)', color: '#fff' }}>
-                    {toAr(aiResult.score)} / ١٠٠
-                  </span>
-                </div>
-                <ul className="space-y-1.5">
-                  {aiResult.topFactors.map((f, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-foreground">{f.labelAr}</span>
-                      <span className="font-bold shrink-0" style={{ color: f.contribution > 0 ? 'var(--success)' : 'var(--error)' }}>
-                        {f.contribution > 0 ? '+' : ''}{toAr(Math.round(f.contribution))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="border-t pt-2 text-xs text-muted-foreground flex justify-between" style={{ borderColor: 'var(--purple)' }}>
-                  <span>احتمالية التحويل</span>
-                  <span className="font-inter font-semibold" style={{ color: 'var(--purple)' }}>{toAr(Math.round(aiResult.probability * 100))}٪</span>
-                </div>
-              </div>
-            )
-          })()}
 
           {lead.customerId && (
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => { onClose(); router.push('/customer-360') }}
-            >
+              onClick={() => {
+                onClose();
+                router.push("/customer-360");
+              }}>
               عرض ملف العميل ٣٦٠
             </Button>
           )}
         </div>
 
-        <DrawerFooter>
-          <Button onClick={onClose} className="w-full bg-brand hover:bg-brand/90 text-white">إغلاق</Button>
+        <DrawerFooter className="gap-2">
+          {confirmDelete ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <p className="text-xs text-red-700 font-medium text-center">
+                هل أنت متأكد من حذف هذا العميل؟
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setConfirmDelete(false)}>
+                  إلغاء
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 text-xs bg-red-600 hover:bg-red-700 text-white gap-1"
+                  onClick={() => {
+                    onDelete(lead.id);
+                    onClose();
+                    setConfirmDelete(false);
+                  }}>
+                  <Trash2 className="size-3.5" /> تأكيد الحذف
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+              onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-3.5" /> حذف العميل
+            </Button>
+          )}
+          <Button
+            onClick={onClose}
+            className="w-full bg-brand hover:bg-brand/90 text-white">
+            إغلاق
+          </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+  );
+}
+
+// ── Manage Reps Dialog ────────────────────────────────────────────────────────
+
+function ManageRepsDialog({ open, reps, onClose, onAdd, onDelete }: { open: boolean; reps: SalesRep[]; onClose: () => void; onAdd: (rep: SalesRep) => void; onDelete: (id: string) => void }) {
+  const [nameAr, setNameAr] = useState('')
+  const [phone, setPhone] = useState('')
+  const [region, setRegion] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/sales-reps', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) throw new Error('فشل الحذف')
+      onDelete(id)
+      setConfirmDeleteId(null)
+      toast.success('تم حذف المندوب بنجاح')
+    } catch {
+      toast.error('تعذّر حذف المندوب، يرجى المحاولة مجدداً')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleAdd = async () => {
+    if (!nameAr.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/sales-reps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nameAr, phone, region }),
+      })
+      if (!res.ok) throw new Error('فشل الحفظ')
+      const rep: SalesRep = await res.json()
+      onAdd(rep)
+      setNameAr('')
+      setPhone('')
+      setRegion('')
+      toast.success(`تمت إضافة المندوب: ${rep.nameAr}`)
+    } catch {
+      toast.error('تعذّر إضافة المندوب، يرجى المحاولة مجدداً')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md" showCloseButton>
+        <DialogHeader><DialogTitle>إدارة المندوبين</DialogTitle></DialogHeader>
+        <div className="flex flex-col gap-4 py-2">
+          {/* Existing reps list */}
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-medium text-muted-foreground mb-1">المندوبون الحاليون</p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {reps.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 px-3 py-2">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand text-xs font-bold">
+                    {r.avatarInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{r.nameAr}</p>
+                    {r.region && <p className="text-xs text-muted-foreground">{r.region}</p>}
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 me-1">{r.leads} عميل</span>
+                  {confirmDeleteId === r.id ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        className="rounded px-2 py-0.5 text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                        disabled={deleting}
+                        onClick={() => handleDelete(r.id)}
+                      >
+                        {deleting ? '...' : 'تأكيد'}
+                      </button>
+                      <button
+                        className="rounded px-2 py-0.5 text-xs border border-border text-muted-foreground hover:bg-muted"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="shrink-0 rounded p-1 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                      onClick={() => setConfirmDeleteId(r.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add new rep form */}
+          <div className="rounded-lg border border-dashed border-border p-4 flex flex-col gap-3">
+            <p className="text-xs font-semibold text-muted-foreground">إضافة مندوب جديد</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2 flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">الاسم الكامل *</label>
+                <Input placeholder="مثال: أحمد المطيري" value={nameAr} onChange={(e) => setNameAr(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">رقم الجوال</label>
+                <Input placeholder="05xxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">المنطقة</label>
+                <Input placeholder="الرياض" value={region} onChange={(e) => setRegion(e.target.value)} />
+              </div>
+            </div>
+            <Button className="bg-brand hover:bg-brand/90 text-white w-full gap-1.5" disabled={!nameAr.trim() || saving} onClick={handleAdd}>
+              <Plus className="size-3.5" />
+              {saving ? 'جارٍ الحفظ...' : 'إضافة مندوب'}
+            </Button>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إغلاق</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 // ── Add Lead Dialog ───────────────────────────────────────────────────────────
 
 function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; salesReps: SalesRep[]; onClose: () => void; onAdd: (lead: Lead) => void }) {
-  const [form, setForm] = useState({ nameAr: '', phone: '', email: '', source: 'Web' as LeadSource, channel: 'WhatsApp' as Channel, propertyInterest: 'فيلا', city: 'الرياض', budget: '', salesRepId: salesReps[0]?.id ?? 'rep-001' })
+  const [form, setForm] = useState({
+    nameAr: "",
+    phone: "",
+    email: "",
+    source: "Web" as LeadSource,
+    channel: "WhatsApp" as Channel,
+    propertyInterest: "فيلا",
+    city: "الرياض",
+    budget: "",
+    salesRepId: salesReps[0]?.id ?? "",
+  });
 
   const handleSubmit = () => {
     if (!form.nameAr.trim() || !form.phone.trim()) return
@@ -320,9 +557,18 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
       lastContactDate: new Date().toISOString(), createdAt: new Date().toISOString(),
     }
     onAdd(newLead)
-    setForm({ nameAr: '', phone: '', email: '', source: 'Web', channel: 'WhatsApp', propertyInterest: 'فيلا', city: 'الرياض', budget: '', salesRepId: salesReps[0]?.id ?? 'rep-001' })
-    onClose()
-    toast.success('تم إضافة العميل المحتمل بنجاح')
+    setForm({
+      nameAr: "",
+      phone: "",
+      email: "",
+      source: "Web",
+      channel: "WhatsApp",
+      propertyInterest: "فيلا",
+      city: "الرياض",
+      budget: "",
+      salesRepId: salesReps[0]?.id ?? "",
+    });
+    onClose();
   }
 
   return (
@@ -381,72 +627,166 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
 
 interface Props { initialLeads: Lead[]; salesReps: SalesRep[] }
 
-export function PipelineClient({ initialLeads, salesReps }: Props) {
-  const [leads, setLeads] = useState<Lead[]>(initialLeads)
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterSource, setFilterSource] = useState('')
-  const [filterRep, setFilterRep] = useState('')
-  const [isLoading] = useState(false)
+export function PipelineClient({
+  initialLeads,
+  salesReps: initialReps,
+}: Props) {
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [reps, setReps] = useState<SalesRep[]>(initialReps);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [repsDialogOpen, setRepsDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterSource, setFilterSource] = useState("");
+  const [filterRep, setFilterRep] = useState("");
+  const [isLoading] = useState(false);
 
   // Reapply persisted drag-and-drop moves after the initial (server) render.
   useEffect(() => {
-    const overrides = loadStageOverrides()
-    if (Object.keys(overrides).length === 0) return
-    setLeads((prev) => prev.map((l) => (overrides[l.id] ? { ...l, stage: overrides[l.id] } : l)))
-  }, [])
+    const overrides = loadStageOverrides();
+    if (Object.keys(overrides).length === 0) return;
+    setLeads((prev) =>
+      prev.map((l) => (overrides[l.id] ? { ...l, stage: overrides[l.id] } : l)),
+    );
+  }, []);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
-  const activeLead = activeId ? leads.find((l) => l.id === activeId) : null
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+  const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
 
-  const visibleLeads = useMemo(() => leads.filter((l) => {
-    if (search) {
-      const q = search.toLowerCase()
-      if (!l.nameAr.includes(search) && !l.phone.includes(search)) return false
+  const visibleLeads = useMemo(
+    () =>
+      leads.filter((l) => {
+        if (search && !l.nameAr.includes(search) && !l.phone.includes(search))
+          return false;
+        if (filterSource && l.source !== filterSource) return false;
+        if (filterRep && l.salesRepId !== filterRep) return false;
+        return true;
+      }),
+    [leads, search, filterSource, filterRep],
+  );
+
+  const handleDragStart = useCallback(
+    (e: DragStartEvent) => setActiveId(e.active.id as string),
+    [],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+      if (!over) return;
+      const leadId = active.id as string;
+      let targetStage = over.id as PipelineStage;
+      if (!COLUMNS.some((c) => c.id === targetStage)) {
+        const tl = leads.find((l) => l.id === targetStage);
+        if (!tl) return;
+        targetStage = tl.stage;
+      }
+      const lead = leads.find((l) => l.id === leadId);
+      if (!lead || lead.stage === targetStage) return;
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, stage: targetStage } : l)),
+      );
+      saveStageOverride(leadId, targetStage);
+      toast.success(
+        `تم نقل ${lead.nameAr} إلى "${STAGE_LABEL_AR[targetStage]}"`,
+      );
+
+      // Real-CRM behaviour: winning a lead converts it into a customer that then
+      // appears in Customer 360. Skip if it was already converted.
+      if (targetStage === "Closed Won" && !lead.customerId) {
+        void (async () => {
+          try {
+            const res = await fetch(`/api/leads/${leadId}/convert`, {
+              method: "POST",
+            });
+            if (!res.ok) throw new Error("فشل التحويل");
+            const customer: { id: string } = await res.json();
+            setLeads((prev) =>
+              prev.map((l) =>
+                l.id === leadId ? { ...l, customerId: customer.id } : l,
+              ),
+            );
+            toast.success(`تم تحويل ${lead.nameAr} إلى عميل في العميل ٣٦٠°`);
+          } catch {
+            toast.error("تعذّر تحويل العميل المحتمل إلى عميل");
+          }
+        })();
+      }
+    },
+    [leads],
+  );
+
+  const handleSelectLead = useCallback(
+    (lead: Lead) => {
+      if (activeId) return;
+      setSelectedLead(lead);
+      setDrawerOpen(true);
+    },
+    [activeId],
+  );
+
+  const handleDeleteLead = useCallback(
+    async (id: string) => {
+      const lead = leads.find((l) => l.id === id);
+      setLeads((prev) => prev.filter((l) => l.id !== id));
+      setDrawerOpen(false);
+      try {
+        const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("فشل الحذف");
+        toast.success(`تم حذف العميل ${lead?.nameAr ?? ""}`);
+      } catch {
+        setLeads((prev) => (lead ? [lead, ...prev] : prev));
+        toast.error("تعذّر حذف العميل، يرجى المحاولة مجدداً");
+      }
+    },
+    [leads],
+  );
+
+  const handleAddLead = useCallback(async (lead: Lead) => {
+    setLeads((prev) => [lead, ...prev]);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(lead),
+      });
+      if (!res.ok) throw new Error("فشل الحفظ");
+      const saved: Lead = await res.json();
+      setLeads((prev) => prev.map((l) => (l.id === lead.id ? saved : l)));
+      toast.success("تم إضافة العميل المحتمل بنجاح");
+    } catch {
+      toast.error("تعذّر حفظ العميل، يرجى المحاولة مجدداً");
     }
-    if (filterSource && l.source !== filterSource) return false
-    if (filterRep && l.salesRepId !== filterRep) return false
-    return true
-  }), [leads, search, filterSource, filterRep])
+  }, []);
 
-  const handleDragStart = useCallback((e: DragStartEvent) => setActiveId(e.active.id as string), [])
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event
-    setActiveId(null)
-    if (!over) return
-    const leadId = active.id as string
-    let targetStage = over.id as PipelineStage
-    if (!COLUMNS.some((c) => c.id === targetStage)) {
-      const tl = leads.find((l) => l.id === targetStage)
-      if (!tl) return
-      targetStage = tl.stage
-    }
-    const lead = leads.find((l) => l.id === leadId)
-    if (!lead || lead.stage === targetStage) return
-    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, stage: targetStage } : l))
-    saveStageOverride(leadId, targetStage)
-    toast.success(`تم نقل ${lead.nameAr} إلى "${STAGE_LABEL_AR[targetStage]}"`)
-  }, [leads])
-
-  const handleSelectLead = useCallback((lead: Lead) => {
-    if (activeId) return
-    setSelectedLead(lead); setDrawerOpen(true)
-  }, [activeId])
-
-  const handleAddLead = useCallback((lead: Lead) => setLeads((prev) => [lead, ...prev]), [])
-
-  // Stats
-  const activeLeads = leads.filter((l) => !['Closed Won', 'Closed Lost'].includes(l.stage))
-  const pipelineValue = leads
-    .filter((l) => ['Proposal', 'Closed Won'].includes(l.stage))
-    .reduce((s, l) => s + (l.budget ?? 0), 0)
-  const closedWon = leads.filter((l) => l.stage === 'Closed Won').length
-  const closedAll = leads.filter((l) => l.stage === 'Closed Won' || l.stage === 'Closed Lost').length
-  const winRate = closedAll ? Math.round((closedWon / closedAll) * 100) : 0
+  // Stats — based on visibleLeads so filters are reflected in the bar
+  const activeLeads = visibleLeads.filter(
+    (l) => !["Closed Won", "Closed Lost"].includes(l.stage),
+  );
+  const pipelineValue = visibleLeads
+    .filter((l) => ["Proposal", "Closed Won"].includes(l.stage))
+    .reduce((s, l) => s + (l.budget ?? 0), 0);
+  const closedWon = visibleLeads.filter((l) => l.stage === "Closed Won").length;
+  const closedAll = visibleLeads.filter(
+    (l) => l.stage === "Closed Won" || l.stage === "Closed Lost",
+  ).length;
+  const winRate = closedAll ? Math.round((closedWon / closedAll) * 100) : 0;
+  const now = Date.now();
+  const avgDaysSinceContact = visibleLeads.length
+    ? Math.round(
+        visibleLeads.reduce(
+          (sum, l) => sum + (now - new Date(l.lastContactDate).getTime()),
+          0,
+        ) /
+          visibleLeads.length /
+          86_400_000,
+      )
+    : 0;
 
   return (
     <div className="flex flex-col gap-5 h-full">
@@ -454,7 +794,9 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-dark">خط المبيعات</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{toAr(leads.length)} عميل محتمل</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {toAr(leads.length)} عميل محتمل
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
@@ -468,7 +810,9 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
               className="h-9 w-52 rounded-lg border border-input bg-background ps-9 pe-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-brand"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute end-2 top-1/2 -translate-y-1/2">
+              <button
+                onClick={() => setSearch("")}
+                className="absolute end-2 top-1/2 -translate-y-1/2">
                 <X className="size-3.5 text-muted-foreground" />
               </button>
             )}
@@ -479,10 +823,13 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
             <select
               className="h-9 rounded-lg border border-input bg-background ps-8 pe-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
               value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
-            >
+              onChange={(e) => setFilterSource(e.target.value)}>
               <option value="">كل المصادر</option>
-              {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
             <ChevronDown className="pointer-events-none absolute end-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           </div>
@@ -491,35 +838,56 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
             <select
               className="h-9 rounded-lg border border-input bg-background ps-3 pe-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
               value={filterRep}
-              onChange={(e) => setFilterRep(e.target.value)}
-            >
+              onChange={(e) => setFilterRep(e.target.value)}>
               <option value="">كل المندوبين</option>
-              {salesReps.map((r) => <option key={r.id} value={r.id}>{r.nameAr}</option>)}
+              {reps.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nameAr}
+                </option>
+              ))}
             </select>
             <ChevronDown className="pointer-events-none absolute end-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           </div>
           {(filterSource || filterRep || search) && (
             <button
-              onClick={() => { setFilterSource(''); setFilterRep(''); setSearch('') }}
-              className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted/70"
-            >
+              onClick={() => {
+                setFilterSource("");
+                setFilterRep("");
+                setSearch("");
+              }}
+              className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted/70">
               <X className="size-3" /> مسح الفلاتر
             </button>
           )}
-          <Button className="bg-brand hover:bg-brand/90 text-white gap-1.5" onClick={() => setDialogOpen(true)}>
-            <Plus className="size-4" />إضافة عميل
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setRepsDialogOpen(true)}>
+            <User className="size-4" />
+            إدارة المندوبين
+          </Button>
+          <Button
+            className="bg-brand hover:bg-brand/90 text-white gap-1.5"
+            onClick={() => setDialogOpen(true)}>
+            <Plus className="size-4" />
+            إضافة عميل
           </Button>
         </div>
       </div>
 
       {/* Kanban */}
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
           {COLUMNS.map((col) => (
             <KanbanColumnZone
-              key={col.id} col={col}
+              key={col.id}
+              col={col}
               leads={visibleLeads.filter((l) => l.stage === col.id)}
-              onSelect={handleSelectLead} isLoading={isLoading}
+              onSelect={handleSelectLead}
+              isLoading={isLoading}
             />
           ))}
         </div>
@@ -527,10 +895,18 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
           {activeLead && (
             <div className="rounded-xl border border-brand bg-card p-4 shadow-2xl w-56 rotate-2">
               <div className="flex items-center gap-3">
-                <Avatar className="size-9 shrink-0"><AvatarFallback className="bg-brand/10 text-brand text-xs font-bold">{activeLead.nameAr.charAt(0)}</AvatarFallback></Avatar>
+                <Avatar className="size-9 shrink-0">
+                  <AvatarFallback className="bg-brand/10 text-brand text-xs font-bold">
+                    {activeLead.nameAr.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{activeLead.nameAr}</p>
-                  <p className="text-xs text-muted-foreground">{activeLead.propertyInterest}</p>
+                  <p className="text-sm font-semibold truncate">
+                    {activeLead.nameAr}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {activeLead.propertyInterest}
+                  </p>
                 </div>
                 <AIScoreBadge lead={activeLead} />
               </div>
@@ -542,20 +918,46 @@ export function PipelineClient({ initialLeads, salesReps }: Props) {
       {/* Stats bar */}
       <div className="grid grid-cols-4 gap-4 border-t border-border pt-4 mt-auto">
         {[
-          { labelAr: 'إجمالي النشطين', value: toAr(activeLeads.length) },
-          { labelAr: 'قيمة المسار (م ريال)', value: `${toAr((pipelineValue / 1_000_000).toFixed(1))}م` },
-          { labelAr: 'آخر تواصل (متوسط أيام)', value: '٤.٢' },
-          { labelAr: 'معدل الإغلاق', value: `${toAr(winRate)}٪` },
+          { labelAr: "إجمالي النشطين", value: toAr(activeLeads.length) },
+          {
+            labelAr: "قيمة المسار (م ريال)",
+            value: `${toAr((pipelineValue / 1_000_000).toFixed(1))}م`,
+          },
+          {
+            labelAr: "آخر تواصل (متوسط أيام)",
+            value: toAr(avgDaysSinceContact),
+          },
+          { labelAr: "معدل الإغلاق", value: `${toAr(winRate)}٪` },
         ].map((s) => (
-          <div key={s.labelAr} className="rounded-xl border border-border bg-card px-4 py-3 text-center">
+          <div
+            key={s.labelAr}
+            className="rounded-xl border border-border bg-card px-4 py-3 text-center">
             <p className="text-lg font-bold text-brand font-inter">{s.value}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{s.labelAr}</p>
           </div>
         ))}
       </div>
 
-      <LeadDrawer lead={selectedLead} salesReps={salesReps} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <AddLeadDialog open={dialogOpen} salesReps={salesReps} onClose={() => setDialogOpen(false)} onAdd={handleAddLead} />
+      <LeadDrawer
+        lead={selectedLead}
+        salesReps={reps}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onDelete={handleDeleteLead}
+      />
+      <AddLeadDialog
+        open={dialogOpen}
+        salesReps={reps}
+        onClose={() => setDialogOpen(false)}
+        onAdd={handleAddLead}
+      />
+      <ManageRepsDialog
+        open={repsDialogOpen}
+        reps={reps}
+        onClose={() => setRepsDialogOpen(false)}
+        onAdd={(rep) => setReps((prev) => [...prev, rep])}
+        onDelete={(id) => setReps((prev) => prev.filter((r) => r.id !== id))}
+      />
     </div>
-  )
+  );
 }

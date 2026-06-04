@@ -13,6 +13,7 @@ import { StatusPill } from '@/components/shared/status-pill'
 import { toast } from 'sonner'
 import type { Campaign, Channel, PipelineStage, CampaignStatus } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { MarketingPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ function MessageStep({ form, onChange }: { form: WizardForm; onChange: (p: Parti
   return (
     <div className="flex flex-col gap-6 max-w-3xl mx-auto">
       <div><h2 className="text-lg font-bold">الرسالة والجدولة</h2></div>
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">إدراج متغير</label>
@@ -280,7 +281,7 @@ function MessageStep({ form, onChange }: { form: WizardForm; onChange: (p: Parti
       {/* Summary card */}
       <div className="rounded-xl border border-border bg-muted/30 p-4">
         <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">ملخص الحملة</p>
-        <div className="grid grid-cols-3 gap-3 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
           <div><p className="text-xs text-muted-foreground">الاسم</p><p className="font-medium mt-0.5 truncate">{form.nameAr || '—'}</p></div>
           <div><p className="text-xs text-muted-foreground">القنوات</p><p className="font-medium mt-0.5">{form.channels.length ? form.channels.join(' / ') : '—'}</p></div>
           <div><p className="text-xs text-muted-foreground">النوع</p><p className="font-medium mt-0.5">{form.scheduleType === 'immediate' ? 'فوري' : 'مجدول'}</p></div>
@@ -487,9 +488,7 @@ export default function MarketingPage() {
 
   if (showWizard) return <CampaignWizard onDone={handleDone} onCancel={() => setShowWizard(false)} />
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-32 text-muted-foreground text-sm">جارٍ التحميل...</div>
-  )
+  if (loading) return <MarketingPageSkeleton />
 
   return (
     <div className="flex flex-col gap-6">
@@ -504,8 +503,23 @@ export default function MarketingPage() {
         </Button>
       </div>
 
+      {campaigns.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-96 gap-4 text-muted-foreground">
+          <div className="flex size-20 items-center justify-center rounded-full bg-error-bg">
+            <Megaphone className="size-10 text-accent-marketing/40" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-foreground">لا توجد حملات بعد</h2>
+            <p className="text-sm mt-1">أنشئ أول حملة تسويقية للتواصل مع عملائك المحتملين</p>
+          </div>
+          <Button className="bg-accent-marketing hover:bg-accent-marketing/90 text-white gap-1.5 mt-2" onClick={() => setShowWizard(true)}>
+            <Plus className="size-4" />إنشاء حملة جديدة
+          </Button>
+        </div>
+      ) : (
+        <>
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { labelAr: 'إجمالي الحملات', value: toAr(campaigns.length), icon: Megaphone, color: 'text-accent-marketing bg-accent-marketing/10' },
           { labelAr: 'الحملات النشطة', value: toAr(active), icon: BarChart3, color: 'text-emerald-600 bg-emerald-50' },
@@ -526,17 +540,17 @@ export default function MarketingPage() {
       </div>
 
       {/* Master-detail split */}
-      <div className="grid grid-cols-3 gap-4 min-h-[480px]">
-        {/* Campaign list (left) */}
-        <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px] pe-1">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 min-h-120">
+        {/* Campaign list */}
+        <div className="flex flex-col gap-2 overflow-y-auto max-h-100 lg:max-h-150 pe-1">
           {campaigns.map((c) => (
             <CampaignListItem key={c.id} campaign={c} isSelected={selectedId === c.id}
               onClick={() => { setSelectedId(c.id); setMetricsTarget(c) }} />
           ))}
         </div>
 
-        {/* Detail panel (right) */}
-        <div className="col-span-2 rounded-xl border border-border bg-card p-5">
+        {/* Detail panel */}
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
           {selected ? (
             <div className="flex flex-col gap-5">
               <div className="flex items-start justify-between gap-3">
@@ -551,7 +565,7 @@ export default function MarketingPage() {
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   ['الوصول التقديري', selected.audience.estimatedReach.toLocaleString('ar-SA') + ' عميل'],
                   ['تاريخ الإنشاء', new Date(selected.createdAt).toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'})],
@@ -610,6 +624,8 @@ export default function MarketingPage() {
 
       {/* Metrics drawer */}
       {metricsTarget && <MetricsDrawer campaign={metricsTarget} onClose={() => setMetricsTarget(null)} />}
+        </>
+      )}
     </div>
   )
 }

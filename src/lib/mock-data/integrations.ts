@@ -39,6 +39,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T12:00:00Z',
     recordCount: 128_450,
     description: 'التحقق الفوري من هوية العملاء عبر منصة أبشر الحكومية',
+    endpoint: 'https://api.absher.sa/v2/health',
     auditLog: auditLog('int-001', '/v2/identity/verify', 50),
   },
   {
@@ -51,6 +52,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:58:00Z',
     recordCount: 94_210,
     description: 'خدمة التحقق بالهوية الوطنية والمقيم عبر تطبيق نافذ',
+    endpoint: 'https://nafath.api.iam.gov.sa/api/v1/health',
     auditLog: auditLog('int-002', '/api/nafath/verify', 50),
   },
   {
@@ -63,6 +65,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T06:00:00Z',
     recordCount: 215_800,
     description: 'مزامنة بيانات السجل المدني دفعيًا مع قاعدة بيانات NIC',
+    endpoint: 'https://api.nic.gov.sa/health',
     auditLog: auditLog('int-003', '/batch/nic/sync', 30),
   },
   {
@@ -75,6 +78,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:45:00Z',
     recordCount: 47_320,
     description: 'الاستعلام عن التقرير الائتماني للعملاء للموافقة على التمويل',
+    endpoint: 'https://api.simah.com/v1/health',
     auditLog: auditLog('int-004', '/credit/report/query', 50),
   },
   {
@@ -87,6 +91,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T10:30:00Z',
     recordCount: 8_940,
     description: 'إدارة صلاحيات العمل والمنشآت التجارية',
+    endpoint: 'https://api.absher.sa/business/v1/health',
     auditLog: auditLog('int-005', '/v1/business/auth', 20),
   },
 
@@ -101,6 +106,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:55:00Z',
     recordCount: 32_100,
     description: 'معالجة طلبات التمويل العقاري وتأكيد الدفعات',
+    endpoint: 'https://developer.alahli.com/api/health',
     auditLog: auditLog('int-006', '/mortgage/application/submit', 50),
   },
   {
@@ -113,6 +119,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:50:00Z',
     recordCount: 28_760,
     description: 'التمويل العقاري والتقسيط الإسلامي',
+    endpoint: 'https://openbanking.alrajhibank.com.sa/api/health',
     auditLog: auditLog('int-007', '/finance/real-estate/apply', 50),
   },
   {
@@ -125,6 +132,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T04:00:00Z',
     recordCount: 14_520,
     description: 'تسوية المدفوعات الدورية وكشوف الحسابات',
+    endpoint: 'https://api.riyadbank.com/openbanking/health',
     auditLog: auditLog('int-008', '/batch/payment/settlement', 30),
   },
   {
@@ -137,6 +145,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T05:00:00Z',
     recordCount: 11_340,
     description: 'خدمات التمويل المنزلي والمرابحة العقارية',
+    endpoint: 'https://api.alinma.com/v1/health',
     auditLog: auditLog('int-009', '/home-finance/batch', 25),
   },
   {
@@ -149,6 +158,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-02T18:00:00Z',
     recordCount: 6_890,
     description: 'تمويل عقاري وخدمات بنكية إسلامية — تحذير: تأخر في الاستجابة',
+    endpoint: 'https://api.baj.com.sa/openbanking/health',
     auditLog: auditLog('int-010', '/v1/mortgage/query', 40, true),
   },
   {
@@ -161,6 +171,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T03:00:00Z',
     recordCount: 5_210,
     description: 'تمويل مشاريع عقارية تجارية وسكنية',
+    endpoint: 'https://api.saib.com.sa/v1/health',
     auditLog: auditLog('int-011', '/batch/commercial/finance', 20),
   },
   {
@@ -173,6 +184,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-02T22:00:00Z',
     recordCount: 9_870,
     description: 'خدمات التحويل والتسوية — تحذير: بطء في المزامنة الليلية',
+    endpoint: 'https://api.anb.com.sa/openbanking/health',
     auditLog: auditLog('int-012', '/batch/transfer/reconcile', 35, true),
   },
   {
@@ -185,6 +197,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T04:30:00Z',
     recordCount: 7_430,
     description: 'تمويل عقاري تجاري وخدمات الاستثمار',
+    endpoint: 'https://api.saudifranski.com/v1/health',
     auditLog: auditLog('int-013', '/batch/real-estate/fund', 22),
   },
 
@@ -199,6 +212,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:59:00Z',
     recordCount: 54_120,
     description: 'معالجة مدفوعات بطاقات الائتمان والمدى',
+    endpoint: 'https://secure.paytabs.sa/payment/status',
     auditLog: auditLog('int-014', '/v2/payment/charge', 50),
   },
   {
@@ -211,6 +225,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:57:00Z',
     recordCount: 38_900,
     description: 'بوابة دفع متعددة القنوات — كروت وتحويل وسداد',
+    endpoint: 'https://eu-test.oppwa.com/v1/health',
     auditLog: auditLog('int-015', '/checkout/initiate', 50),
   },
   {
@@ -223,6 +238,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:56:00Z',
     recordCount: 72_340,
     description: 'معالجة مدفوعات شبكة مدى السعودية',
+    endpoint: 'https://api.mada.com.sa/v1/health',
     auditLog: auditLog('int-016', '/mada/transaction/process', 50),
   },
 
@@ -237,6 +253,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T02:00:00Z',
     recordCount: 18_650,
     description: 'مزامنة تراخيص التطوير العقاري وتسجيل الوحدات',
+    endpoint: 'https://api.rega.gov.sa/v1/health',
     auditLog: auditLog('int-017', '/rega/units/register', 30),
   },
   {
@@ -249,6 +266,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T01:00:00Z',
     recordCount: 42_100,
     description: 'ربط بيانات المشاريع السكنية مع قاعدة الوزارة',
+    endpoint: 'https://api.housing.gov.sa/v1/health',
     auditLog: auditLog('int-018', '/housing/projects/sync', 25),
   },
   {
@@ -261,6 +279,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:30:00Z',
     recordCount: 15_280,
     description: 'تسجيل عقود الإيجار وإدارة العلاقات التأجيرية',
+    endpoint: 'https://api.ejar.sa/v2/health',
     auditLog: auditLog('int-019', '/ejar/contract/register', 40),
   },
   {
@@ -273,6 +292,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T10:00:00Z',
     recordCount: 89_340,
     description: 'التكامل مع برنامج سكني لدعم المواطنين في تملك السكن',
+    endpoint: 'https://api.sakani.housing.gov.sa/v1/health',
     auditLog: auditLog('int-020', '/sakani/beneficiary/check', 50),
   },
   {
@@ -285,6 +305,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T09:00:00Z',
     recordCount: 6_720,
     description: 'توثيق العقود وطلبات نقل الملكية عبر كتابة العدل',
+    endpoint: 'https://api.moj.gov.sa/notary/v1/health',
     auditLog: auditLog('int-021', '/moj/notary/submit', 18),
   },
   {
@@ -297,6 +318,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T00:30:00Z',
     recordCount: 31_450,
     description: 'تسجيل ملكيات الوحدات ونقلها في السجل العقاري الموحد',
+    endpoint: 'https://api.rer.gov.sa/v1/health',
     auditLog: auditLog('int-022', '/registry/ownership/transfer', 28),
   },
 
@@ -311,6 +333,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:58:00Z',
     recordCount: 143_200,
     description: 'إرسال رسائل SMS عبر شبكة STC وتتبع حالة التسليم',
+    endpoint: 'https://api.stc.com.sa/messaging/v1/health',
     auditLog: auditLog('int-023', '/sms/send', 50),
   },
   {
@@ -323,6 +346,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:55:00Z',
     recordCount: 67_890,
     description: 'بوابة SMS لشبكة زين',
+    endpoint: 'https://api.sa.zain.com/messaging/health',
     auditLog: auditLog('int-024', '/messaging/sms/dispatch', 50),
   },
   {
@@ -335,6 +359,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:52:00Z',
     recordCount: 52_340,
     description: 'بوابة SMS لشبكة موبايلي',
+    endpoint: 'https://api.mobily.com.sa/sms/v1/health',
     auditLog: auditLog('int-025', '/api/sms/send', 50),
   },
 
@@ -349,6 +374,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T12:00:00Z',
     recordCount: 234_780,
     description: 'إرسال رسائل واتساب للعملاء وإدارة المحادثات',
+    endpoint: 'https://www.metastatus.com/api/v2/status.json',
     auditLog: auditLog('int-026', '/whatsapp/messages/send', 50),
   },
   {
@@ -361,6 +387,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:59:00Z',
     recordCount: 189_450,
     description: 'منصة موحدة لإرسال الرسائل القصيرة عبر شبكات متعددة',
+    endpoint: 'https://api.unifonic.com/rest/v1/health',
     auditLog: auditLog('int-027', '/v2/messages/sms', 50),
   },
   {
@@ -373,6 +400,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-01T18:00:00Z',
     recordCount: 98_210,
     description: 'إرسال حملات البريد الإلكتروني — خطأ: انتهاء صلاحية API key',
+    endpoint: 'https://status.sendgrid.com/api/v2/status.json',
     auditLog: auditLog('int-028', '/v3/mail/send', 50, true),
   },
   {
@@ -385,6 +413,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:58:00Z',
     recordCount: 78_920,
     description: 'إرسال إشعارات فورية لتطبيق الجوال',
+    endpoint: 'https://status.firebase.google.com/api/v2/status.json',
     auditLog: auditLog('int-029', '/fcm/send', 50),
   },
   {
@@ -397,6 +426,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T08:00:00Z',
     recordCount: 12_340,
     description: 'نشر المحتوى ومراقبة تغريدات مشاريع NHC',
+    endpoint: 'https://api.twitterstat.us/api/v2/status.json',
     auditLog: auditLog('int-030', '/2/tweets', 20),
   },
 
@@ -411,6 +441,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-02T12:00:00Z',
     recordCount: 456_780,
     description: 'نظام تخطيط موارد المؤسسة — تحذير: مزامنة الليل الأخير فشلت جزئيًا',
+    endpoint: 'https://api.status.sap.com/api/v1/status',
     auditLog: auditLog('int-031', '/sap/odata/v4/SalesOrder', 50, true),
   },
   {
@@ -423,6 +454,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T05:00:00Z',
     recordCount: 312_450,
     description: 'مزامنة بيانات المبيعات والعملاء مع Dynamics 365',
+    endpoint: 'https://status.cloud.microsoft/api/v1/status',
     auditLog: auditLog('int-032', '/api/data/v9.2/leads', 35),
   },
   {
@@ -435,6 +467,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T11:45:00Z',
     recordCount: 287_630,
     description: 'مزامنة ثنائية الاتجاه مع Salesforce للعملاء والصفقات',
+    endpoint: 'https://api.status.salesforce.com/v1/instances/status',
     auditLog: auditLog('int-033', '/services/data/v58.0/sobjects', 50),
   },
   {
@@ -447,6 +480,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-05-30T10:00:00Z',
     recordCount: 198_420,
     description: 'نظام Oracle للمحاسبة والمشتريات — خطأ: خادم غير متاح',
+    endpoint: 'https://ocistatus.oraclecloud.com/api/v2/status.json',
     auditLog: auditLog('int-034', '/fscmRestApi/resources/v11.13.18.05', 50, true),
   },
 
@@ -461,6 +495,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T07:00:00Z',
     recordCount: 89_230,
     description: 'دفع بيانات المبيعات اليومية إلى لوحات Power BI التنفيذية',
+    endpoint: 'https://status.cloud.microsoft/api/v1/status',
     auditLog: auditLog('int-035', '/v1.0/myorg/datasets', 30),
   },
   {
@@ -473,6 +508,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T06:30:00Z',
     recordCount: 1_234_560,
     description: 'تتبع تفاعل الزوار مع الموقع وحملات التسويق الرقمي',
+    endpoint: 'https://www.googapis.com/discovery/v1/apis/analytics/v3/rest',
     auditLog: auditLog('int-036', '/v1beta/properties/data:runReport', 40),
   },
   {
@@ -485,6 +521,7 @@ export const INTEGRATIONS: Integration[] = [
     lastSync: '2026-06-03T03:30:00Z',
     recordCount: 5_678_900,
     description: 'مستودع البيانات المركزي — تحميل يومي لجميع بيانات CRM والمبيعات',
+    endpoint: 'https://status.snowflake.com/api/v2/status.json',
     auditLog: auditLog('int-037', '/api/v2/statements', 35),
   },
 ]

@@ -40,11 +40,13 @@ function LeadListItem({
   isSelected: boolean
   onSelect: () => void
 }) {
+  // Prefer the live computed score; fall back to the lead's stored score.
+  const displayScore = score?.totalScore ?? lead.aiScore
   return (
     <button
       onClick={onSelect}
       className={cn(
-        "w-full flex items-center gap-3 rounded-xl border p-3.5 text-right transition-all",
+        "w-full flex items-center gap-3 rounded-xl border p-3.5 text-start transition-all",
         isSelected
           ? "border-accent-lead-scoring bg-amber-50 shadow-sm"
           : "border-border bg-card hover:border-accent-lead-scoring/50 hover:bg-muted/30",
@@ -66,13 +68,13 @@ function LeadListItem({
         <span
           className={cn(
             "text-lg font-extrabold",
-            lead.aiScore >= 80
+            displayScore >= 80
               ? "text-success"
-              : lead.aiScore >= 60
+              : displayScore >= 60
                 ? "text-accent-lead-scoring"
                 : "text-muted-foreground",
           )}>
-          {toAr(lead.aiScore)}
+          {toAr(displayScore)}
         </span>
         {score && <TrendIcon trend={score.trend} />}
       </div>
@@ -238,9 +240,12 @@ interface Props {
 }
 
 export function LeadScoringClient({ leads, scores, salesReps }: Props) {
+  const scoreByLead = new Map(scores.map((s) => [s.leadId, s]))
+  const scoreOf = (lead: Lead) => scoreByLead.get(lead.id)?.totalScore ?? lead.aiScore
+
   const scorableLeads = leads
     .filter((l) => VISIBLE_STAGES.includes(l.stage))
-    .sort((a, b) => b.aiScore - a.aiScore)
+    .sort((a, b) => scoreOf(b) - scoreOf(a))
 
   const [selectedId, setSelectedId] = useState<string>(scorableLeads[0]?.id ?? '')
 
@@ -258,38 +263,50 @@ export function LeadScoringClient({ leads, scores, salesReps }: Props) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              العملاء النشطون ({toAr(scorableLeads.length)})
-            </h3>
+      {scorableLeads.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-muted-foreground">
+          <div className="flex size-20 items-center justify-center rounded-full bg-amber-50">
+            <Lightbulb className="size-10 text-amber-300" />
           </div>
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[600px]">
-            {scorableLeads.map((lead) => (
-              <LeadListItem
-                key={lead.id}
-                lead={lead}
-                score={scores.find((s) => s.leadId === lead.id)}
-                isSelected={lead.id === selectedId}
-                onSelect={() => setSelectedId(lead.id)}
-              />
-            ))}
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-foreground">لا يوجد عملاء محتملون بعد</h2>
+            <p className="text-sm mt-1">أضف عملاء محتملين من خط المبيعات لتظهر تقييماتهم هنا</p>
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                العملاء النشطون ({toAr(scorableLeads.length)})
+              </h3>
+            </div>
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-150">
+              {scorableLeads.map((lead) => (
+                <LeadListItem
+                  key={lead.id}
+                  lead={lead}
+                  score={scoreByLead.get(lead.id)}
+                  isSelected={lead.id === selectedId}
+                  onSelect={() => setSelectedId(lead.id)}
+                />
+              ))}
+            </div>
+          </div>
 
-        <div className="lg:col-span-2">
-          {selectedLead && selectedScore ? (
-            <ScoreDetailPanel
-              lead={selectedLead}
-              score={selectedScore}
-              salesReps={salesReps}
-            />
-          ) : selectedLead ? (
-            <NoScoreState lead={selectedLead} />
-          ) : null}
+          <div className="lg:col-span-2">
+            {selectedLead && selectedScore ? (
+              <ScoreDetailPanel
+                lead={selectedLead}
+                score={selectedScore}
+                salesReps={salesReps}
+              />
+            ) : selectedLead ? (
+              <NoScoreState lead={selectedLead} />
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

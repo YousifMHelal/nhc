@@ -9,7 +9,7 @@
  * Shape contract: must stay in sync with train.py featurise() order.
  */
 
-import type { Lead, AIScoreResult, AIScoreFactor } from '@/lib/types'
+import type { Lead, AIScoreResult, AIScoreFactor, LeadScore, LeadScoreFactor, LeadGrade } from '@/lib/types'
 import MODEL from '../../../pilot/lead-scoring/model.json'
 
 // ── Feature encoding (mirrors train.py) ─────────────────────────────────────
@@ -32,16 +32,17 @@ function cityTierNorm(city: string): number {
   return 0.3
 }
 
+// Production scoring is time-relative: recency and pipeline age are measured
+// against the moment the score is computed, so a lead's score decays as it
+// goes cold and ages — re-scoring later naturally yields a fresh value.
 function recencyDays(lastContactDate: string): number {
-  const now = new Date('2026-06-03').getTime()
   const last = new Date(lastContactDate).getTime()
-  return Math.max(0, Math.round((now - last) / 86_400_000))
+  return Math.max(0, Math.round((Date.now() - last) / 86_400_000))
 }
 
 function daysInPipeline(createdAt: string): number {
-  const now = new Date('2026-06-03').getTime()
   const created = new Date(createdAt).getTime()
-  return Math.max(0, Math.round((now - created) / 86_400_000))
+  return Math.max(0, Math.round((Date.now() - created) / 86_400_000))
 }
 
 /** Build the 10-element feature vector matching train.py featurise(). */
@@ -127,28 +128,88 @@ export function scoreLead(lead: Lead, interactionCount = 0): AIScoreResult {
   }
 }
 
+// Model feature importances, normalised to sum to 1 so they read as relative
+// weights in the UI ("الوزن النسبي").
+const importancesNorm = (() => {
+  const total = importances.reduce((s, v) => s + v, 0) || 1
+  return importances.map((v) => v / total)
+})()
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+
 /**
- * Convert an AIScoreResult to the LeadScore shape the existing UI already
- * consumes, so no UI components need to change their prop types.
+ * Compute the full LeadScore the lead-scoring UI consumes, live from the lead's
+ * current attributes. Unlike scoreLead() (which returns the raw AI result), this
+ * builds the per-factor breakdown the detail panel renders:
+ *   - factors: the five most influential model features. `score`/`maxScore` is
+ *     the lead's raw strength on that feature (0–100); `weight` is the model's
+ *     relative importance for it.
+ *   - topFactors: the strongest positive drivers, for the recommendation card.
+ *   - trend: movement vs. the lead's last persisted score (`previousScore`).
+ *
+ * @param lead             Lead entity from the DB
+ * @param interactionCount interactions logged for this lead/customer
+ * @param previousScore    last stored score (e.g. lead.aiScore) for trend
  */
-export function toLeadScore(leadId: string, result: AIScoreResult, existingScore?: number): import('@/lib/types').LeadScore {
-  const prev = existingScore ?? result.score
-  const trend: 'up' | 'down' | 'stable' =
-    result.score > prev + 3 ? 'up' : result.score < prev - 3 ? 'down' : 'stable'
+export function leadScoreDetail(
+  lead: Lead,
+  interactionCount = 0,
+  previousScore?: number,
+): LeadScore {
+  const features = featurise(lead, interactionCount)
+
+  const scaled = scaler
+    ? features.map((f, i) => (f - scaler.mean[i]) / scaler.scale[i])
+    : features
+  const logit = scaled.reduce((sum, f, i) => sum + coef[i] * f, intercept)
+  const probability = sigmoid(logit)
+  const totalScore = Math.round(Math.min(100, Math.max(0, probability * 110 - 5)))
+  const grade: LeadGrade =
+    totalScore >= 80 ? 'A' : totalScore >= 60 ? 'B' : totalScore >= 40 ? 'C' : 'D'
+
+  // Signed per-feature contributions drive which factors we surface as drivers.
+  const contribs = coef.map((c, i) => c * scaled[i])
+
+  // The five highest-importance features, shown as the score breakdown.
+  const order = features
+    .map((_, i) => i)
+    .sort((a, b) => importancesNorm[b] - importancesNorm[a])
+    .slice(0, 5)
+  const factors: LeadScoreFactor[] = order.map((i) => ({
+    labelAr: labelsAr[i],
+    score: Math.round(clamp01(features[i]) * 100),
+    maxScore: 100,
+    weight: Math.round(importancesNorm[i] * 1000) / 1000,
+  }))
+
+  // Positive drivers: features pushing the score up where the lead scores well.
+  let topFactors = contribs
+    .map((contrib, i) => ({ labelAr: labelsAr[i], contrib, raw: features[i] }))
+    .filter((f) => f.contrib > 0 && f.raw >= 0.5)
+    .sort((a, b) => b.contrib - a.contrib)
+    .slice(0, 3)
+    .map((f) => f.labelAr)
+  if (topFactors.length === 0) {
+    // Cold lead with no strong positive signal — surface its best raw features.
+    topFactors = features
+      .map((raw, i) => ({ raw, i }))
+      .sort((a, b) => b.raw - a.raw)
+      .slice(0, 2)
+      .map((f) => labelsAr[f.i])
+  }
+
+  const prev = previousScore ?? totalScore
+  const trend: LeadScore['trend'] =
+    totalScore > prev + 3 ? 'up' : totalScore < prev - 3 ? 'down' : 'stable'
 
   return {
-    leadId,
-    totalScore: result.score,
+    leadId: lead.id,
+    totalScore,
     maxScore: 100,
-    grade: result.tier,
-    updatedAt: result.scoredAt,
+    grade,
+    updatedAt: new Date().toISOString(),
     trend,
-    topFactors: result.topFactors.map((f) => f.labelAr),
-    factors: result.topFactors.map((f) => ({
-      labelAr: f.labelAr,
-      score: Math.round(Math.max(0, f.contribution)),
-      maxScore: 100,
-      weight: f.raw,
-    })),
+    topFactors,
+    factors,
   }
 }

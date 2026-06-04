@@ -9,7 +9,6 @@ import type { Customer, HousingEligibilityResult, EligibilityProgram, Eligibilit
 
 // Program eligibility thresholds (simplified rule engine)
 const SAKANI_MAX_INCOME_PROXY = 14_000       // SAR/month proxy — high aiScore = higher income
-const RDF_MIN_SCORE = 40                     // صندوق التنمية العقاري: low-income priority
 const SUBSIDISED_MORTGAGE_MIN_SCORE = 55
 
 function nationalitySaudi(customer: Customer): boolean {

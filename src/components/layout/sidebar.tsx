@@ -42,11 +42,11 @@ export function Sidebar({
         className={cn(
           "flex flex-col shrink-0 bg-brand-dark overflow-hidden",
           "transition-[width,transform] duration-200 ease-in-out",
-          "fixed inset-y-0 right-0 z-30 w-60",
+          "fixed inset-y-0 start-0 z-30 w-60",
           mobileOpen ? "translate-x-0" : "transform-[translateX(100%)]",
 
           // ── md+ (tablet & desktop): fills the sticky wrapper (h-dvh set by wrapper) ──
-          "md:static md:inset-y-auto md:right-auto md:h-full md:w-full md:z-auto md:transform-none",
+          "md:static md:inset-y-auto md:start-auto md:h-full md:w-full md:z-auto md:transform-none",
 
           // ── Tablet (md < xl): icon-only 64px ──
           "md:w-16",

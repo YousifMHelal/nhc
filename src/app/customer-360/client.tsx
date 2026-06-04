@@ -27,6 +27,7 @@ import {
   BadgeCheck,
   AlertTriangle,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ import { StatusPill } from '@/components/shared/status-pill'
 import { ScoreRing } from '@/components/shared/score-ring'
 import { TimelineItemSkeleton } from '@/components/shared/skeleton-card'
 import { toast } from 'sonner'
-import type { TimelineEvent, Customer, Opportunity, Contract, Unit } from '@/lib/types'
+import type { TimelineEvent, Customer, Opportunity, Contract, Unit, SalesRep, InteractionType } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
 import { scoreLead } from '@/lib/ai/leadScore'
 import { computeHousingEligibility } from '@/lib/ai/housingEligibility'
@@ -77,6 +78,13 @@ const TABS = [
 ];
 
 const CHANNELS = ['واتساب', 'مكالمة', 'بريد إلكتروني', 'اجتماع', 'زيارة موقع']
+const CHANNEL_TO_TYPE: Record<string, InteractionType> = {
+  'واتساب': 'Message',
+  'مكالمة': 'Call',
+  'بريد إلكتروني': 'Email',
+  'اجتماع': 'Meeting',
+  'زيارة موقع': 'Site Visit',
+}
 const SOURCE_FILTERS = [
   { id: '', labelAr: 'الكل' },
   { id: 'Call', labelAr: 'مكالمات' },
@@ -116,7 +124,7 @@ function TimelineItem({ event, isLast, isHighlighted }: { event: TimelineEvent; 
 }
 
 /* ── Log Interaction Modal ─────────────────────────────────── */
-function LogInteractionModal({ onClose, onSave }: { onClose: () => void; onSave: (note: string) => void }) {
+function LogInteractionModal({ onClose, onSave }: { onClose: () => void; onSave: (note: string, channel: string) => void }) {
   const [channel, setChannel] = useState(CHANNELS[0])
   const [note, setNote] = useState('')
   const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring'
@@ -145,7 +153,7 @@ function LogInteractionModal({ onClose, onSave }: { onClose: () => void; onSave:
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>إلغاء</Button>
-          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" onClick={() => { onSave(note); onClose() }}>
+          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" onClick={() => { onSave(note, channel); onClose() }}>
             حفظ
           </Button>
         </div>
@@ -181,6 +189,36 @@ function CreateOpportunityModal({ customerName, onClose, onSave }: { customerNam
   )
 }
 
+/* ── Delete Confirm Modal ──────────────────────────────────── */
+function DeleteConfirmModal({ customerName, onClose, onConfirm }: { customerName: string; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm rounded-xl bg-card border border-border shadow-2xl p-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-full bg-red-100">
+              <Trash2 className="size-4 text-red-600" />
+            </div>
+            <h3 className="text-sm font-bold">حذف العميل</h3>
+          </div>
+          <button onClick={onClose}><X className="size-4" /></button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          هل أنت متأكد من حذف العميل <strong className="text-foreground">{customerName}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
+        </p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>إلغاء</Button>
+          <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white gap-1.5" onClick={onConfirm}>
+            <Trash2 className="size-3.5" />
+            حذف
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Main component ─────────────────────────────────────────── */
 interface Props {
   customers: Customer[]
@@ -188,29 +226,63 @@ interface Props {
   allOpportunities: Opportunity[]
   allContracts: Contract[]
   availableUnits: Unit[]
+  salesReps: SalesRep[]
 }
 
-export function Customer360Client({ customers, allTimeline, allOpportunities, allContracts, availableUnits }: Props) {
+export function Customer360Client({ customers, allTimeline, allOpportunities, allContracts, availableUnits, salesReps }: Props) {
+  const [customerList, setCustomerList] = useState(customers)
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? '')
   const [activeTab, setActiveTab] = useState("ai-analysis");
   const [activeFilter, setActiveFilter] = useState('')
-  const [isLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [assignedRep, setAssignedRep] = useState('')
+  const [assigning, setAssigning] = useState(false)
   const [showLogModal, setShowLogModal] = useState(false)
   const [showOppModal, setShowOppModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [extraTimeline, setExtraTimeline] = useState<TimelineEvent[]>([])
   const [extraOpps, setExtraOpps] = useState<Opportunity[]>([])
 
-  const customer = customers.find((c) => c.id === customerId) ?? customers[0]
+  const customer = customerList.find((c) => c.id === customerId) ?? customerList[0]
   const timeline = [...allTimeline.filter((e) => e.customerId === customer?.id), ...extraTimeline.filter((e) => e.customerId === customer?.id)]
   const opportunities = [...allOpportunities.filter((o) => o.customerId === customer?.id), ...extraOpps.filter((o) => o.customerId === customer?.id)]
   const contracts = allContracts.filter((c) => c.customerId === customer?.id)
 
   const filteredTimeline = activeFilter ? timeline.filter((e) => e.type === activeFilter) : timeline
 
-  if (!customer) return null
+  if (!customer) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-muted-foreground">
+        <div className="flex size-20 items-center justify-center rounded-full bg-muted">
+          <User className="size-10 opacity-30" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-foreground">لا يوجد عملاء بعد</h2>
+          <p className="text-sm mt-1">أضف عملاء من خط المبيعات لعرضهم هنا</p>
+        </div>
+      </div>
+    )
+  }
 
-  const REPS = ['خالد الشمري', 'نورة الغامدي', 'فيصل العنزي', 'سارة القرشي', 'رشيد الزهراني']
+  async function handleAssignRep() {
+    if (!assignedRep) return
+    const rep = salesReps.find((r) => r.id === assignedRep)
+    setAssigning(true)
+    try {
+      const res = await fetch(`/api/customers/${customer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salesRepId: assignedRep }),
+      })
+      if (!res.ok) throw new Error('فشل التعيين')
+      setCustomerList((p) => p.map((c) => (c.id === customer.id ? { ...c, salesRepId: assignedRep } : c)))
+      toast.success(`تم تعيين ${rep?.nameAr ?? ''} للعميل ${customer.nameAr}`)
+    } catch {
+      toast.error('تعذّر تعيين المندوب، يرجى المحاولة مجدداً')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   // ── AI Pipeline (recomputed when customer changes) ───────────────────────
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -250,11 +322,13 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
             className="h-9 w-full rounded-lg border border-input bg-background pe-8 ps-3 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
             value={customerId}
             onChange={(e) => {
+              setIsLoading(true);
               setCustomerId(e.target.value);
               setActiveFilter("");
               setActiveTab("ai-analysis");
+              setTimeout(() => setIsLoading(false), 400);
             }}>
-            {customers.map((c) => (
+            {customerList.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nameAr}
               </option>
@@ -315,7 +389,7 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                   };
                   const aiResult = scoreLead(aiLead);
                   return (
-                    <div className="absolute -top-2 -translate-y-full inset-s-1/2 -translate-x-1/2 hidden group-hover:block z-10 w-52 rounded-lg border border-border bg-card shadow-md text-right p-3">
+                    <div className="absolute -top-2 -translate-y-full inset-s-1/2 -translate-x-1/2 hidden group-hover:block z-10 w-52 rounded-lg border border-border bg-card shadow-md text-start p-3">
                       <p
                         className="text-xs font-semibold mb-2"
                         style={{ color: "var(--purple)" }}>
@@ -394,21 +468,17 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                   value={assignedRep}
                   onChange={(e) => setAssignedRep(e.target.value)}>
                   <option value="">اختر مندوباً...</option>
-                  {REPS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
+                  {salesReps.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nameAr}
                     </option>
                   ))}
                 </select>
                 <Button
                   size="sm"
                   className="bg-brand hover:bg-brand/90 text-white px-3 h-8 text-xs"
-                  disabled={!assignedRep}
-                  onClick={() =>
-                    toast.success(
-                      `تم تعيين ${assignedRep} للعميل ${customer.nameAr}`,
-                    )
-                  }>
+                  disabled={!assignedRep || assigning}
+                  onClick={handleAssignRep}>
                   تعيين
                 </Button>
               </div>
@@ -430,6 +500,15 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
               onClick={() => setShowOppModal(true)}>
               <Plus className="size-3.5" />
               إنشاء فرصة
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+              onClick={() => setShowDeleteModal(true)}>
+              <Trash2 className="size-3.5" />
+              حذف العميل
             </Button>
           </div>
 
@@ -1079,19 +1158,52 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
       {showLogModal && (
         <LogInteractionModal
           onClose={() => setShowLogModal(false)}
-          onSave={(note) => {
-            const newEvent: TimelineEvent = {
-              id: `evt-${Date.now()}`,
-              customerId: customer.id,
-              entityType: "Interaction",
-              entityId: `int-${Date.now()}`,
-              titleAr: "تفاعل جديد",
-              descriptionAr: note || "تم تسجيل التفاعل",
-              date: new Date().toISOString(),
-              type: "Call",
-            };
-            setExtraTimeline((p) => [newEvent, ...p]);
-            toast.success("تم تسجيل التفاعل بنجاح");
+          onSave={async (note, channel) => {
+            const targetId = customer.id
+            try {
+              const res = await fetch(`/api/customers/${targetId}/interactions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  type: CHANNEL_TO_TYPE[channel] ?? "Call",
+                  channel,
+                  note,
+                }),
+              });
+              if (!res.ok) throw new Error("فشل الحفظ");
+              const { event } = (await res.json()) as { event: TimelineEvent };
+              // Display under the currently-selected id even if a lead was just
+              // converted to a customer (the DB row carries the real customerId).
+              setExtraTimeline((p) => [{ ...event, customerId: targetId }, ...p]);
+              toast.success("تم تسجيل التفاعل بنجاح");
+            } catch {
+              toast.error("تعذّر تسجيل التفاعل، يرجى المحاولة مجدداً");
+            }
+          }}
+        />
+      )}
+      {showDeleteModal && (
+        <DeleteConfirmModal
+          customerName={customer.nameAr}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={async () => {
+            const deleted = customer
+            const remaining = customerList.filter((c) => c.id !== deleted.id)
+            setCustomerList(remaining)
+            setShowDeleteModal(false)
+            const next = remaining[0]
+            setCustomerId(next?.id ?? '')
+            setActiveTab('ai-analysis')
+            setActiveFilter('')
+            try {
+              const res = await fetch(`/api/customers/${deleted.id}`, { method: 'DELETE' })
+              if (!res.ok) throw new Error('فشل الحذف')
+              toast.success(`تم حذف العميل ${deleted.nameAr}`)
+            } catch {
+              setCustomerList((p) => [deleted, ...p])
+              setCustomerId(deleted.id)
+              toast.error('تعذّر حذف العميل، يرجى المحاولة مجدداً')
+            }
           }}
         />
       )}
@@ -1099,25 +1211,29 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
         <CreateOpportunityModal
           customerName={customer.nameAr}
           onClose={() => setShowOppModal(false)}
-          onSave={(title) => {
-            const newOpp: Opportunity = {
-              id: `opp-${Date.now()}`,
-              customerId: customer.id,
-              titleAr: title,
-              project: "مشروع جديد",
-              unitType: customer.propertyInterest,
-              valueRiyal: 1_500_000,
-              stage: "تحديد الاهتمام",
-              probability: 20,
-              expectedCloseDate: new Date(
-                Date.now() + 30 * 86400000,
-              ).toISOString(),
-              salesRepId: "rep-001",
-              createdAt: new Date().toISOString(),
-            };
-            setExtraOpps((p) => [newOpp, ...p]);
-            toast.success("تم إنشاء الفرصة بنجاح");
-            setActiveTab("opportunities");
+          onSave={async (title) => {
+            const targetId = customer.id
+            try {
+              const res = await fetch(`/api/customers/${targetId}/opportunities`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  titleAr: title,
+                  unitType: customer.propertyInterest,
+                }),
+              });
+              if (!res.ok) throw new Error("فشل الحفظ");
+              const { opportunity, event } = (await res.json()) as {
+                opportunity: Opportunity;
+                event: TimelineEvent;
+              };
+              setExtraOpps((p) => [{ ...opportunity, customerId: targetId }, ...p]);
+              setExtraTimeline((p) => [{ ...event, customerId: targetId }, ...p]);
+              toast.success("تم إنشاء الفرصة بنجاح");
+              setActiveTab("opportunities");
+            } catch {
+              toast.error("تعذّر إنشاء الفرصة، يرجى المحاولة مجدداً");
+            }
           }}
         />
       )}

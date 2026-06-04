@@ -6,7 +6,7 @@ export async function GET() {
     const journeys = await getJourneys()
     return NextResponse.json(journeys)
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -16,6 +16,6 @@ export async function POST(req: Request) {
     const journey = await createJourney(body)
     return NextResponse.json(journey, { status: 201 })
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
