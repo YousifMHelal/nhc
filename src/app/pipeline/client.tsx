@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDroppable, useDraggable, type DragEndEvent, type DragStartEvent,
@@ -63,30 +63,8 @@ const selectCls =
   "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring [color-scheme:light] dark:[color-scheme:dark]";
 
 // ── Stage persistence (mock-only, no backend) ────────────────────────────────
-// We persist a map of leadId → stage so drag-and-drop moves survive a refresh.
-// The mock data stays the source of truth; only the user's moves are overlaid.
-
-const STAGE_STORE_KEY = 'nhc.pipeline.stageOverrides'
-
-function loadStageOverrides(): Record<string, PipelineStage> {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = window.localStorage.getItem(STAGE_STORE_KEY)
-    return raw ? (JSON.parse(raw) as Record<string, PipelineStage>) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveStageOverride(leadId: string, stage: PipelineStage) {
-  if (typeof window === 'undefined') return
-  try {
-    const next = { ...loadStageOverrides(), [leadId]: stage }
-    window.localStorage.setItem(STAGE_STORE_KEY, JSON.stringify(next))
-  } catch {
-    /* ignore quota / serialization errors */
-  }
-}
+// Drag-and-drop stage changes are persisted to the database via
+// PATCH /api/leads/[id]; the server render is the source of truth.
 
 // ── AI Score badge (purple, hover → top-3 factors) ──────────────────────────
 
@@ -675,15 +653,6 @@ export function PipelineClient({
   const [filterRep, setFilterRep] = useState("");
   const [isLoading] = useState(false);
 
-  // Reapply persisted drag-and-drop moves after the initial (server) render.
-  useEffect(() => {
-    const overrides = loadStageOverrides();
-    if (Object.keys(overrides).length === 0) return;
-    setLeads((prev) =>
-      prev.map((l) => (overrides[l.id] ? { ...l, stage: overrides[l.id] } : l)),
-    );
-  }, []);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -720,35 +689,41 @@ export function PipelineClient({
       }
       const lead = leads.find((l) => l.id === leadId);
       if (!lead || lead.stage === targetStage) return;
+      const previousStage = lead.stage;
+      // Optimistically move the card; the PATCH below persists it to the
+      // database (the server also converts a lead to a customer on Closed Won).
       setLeads((prev) =>
         prev.map((l) => (l.id === leadId ? { ...l, stage: targetStage } : l)),
       );
-      saveStageOverride(leadId, targetStage);
       toast.success(
         `تم نقل ${lead.nameAr} إلى "${STAGE_LABEL_AR[targetStage]}"`,
       );
 
-      // Real-CRM behaviour: winning a lead converts it into a customer that then
-      // appears in Customer 360. Skip if it was already converted.
-      if (targetStage === "Closed Won" && !lead.customerId) {
-        void (async () => {
-          try {
-            const res = await fetch(`/api/leads/${leadId}/convert`, {
-              method: "POST",
-            });
-            if (!res.ok) throw new Error("فشل التحويل");
-            const customer: { id: string } = await res.json();
-            setLeads((prev) =>
-              prev.map((l) =>
-                l.id === leadId ? { ...l, customerId: customer.id } : l,
-              ),
-            );
+      void (async () => {
+        try {
+          const res = await fetch(`/api/leads/${leadId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage: targetStage }),
+          });
+          if (!res.ok) throw new Error("فشل حفظ الحالة");
+          const updated: Lead = await res.json();
+          setLeads((prev) =>
+            prev.map((l) => (l.id === leadId ? { ...l, ...updated } : l)),
+          );
+          if (targetStage === "Closed Won" && !lead.customerId) {
             toast.success(`تم تحويل ${lead.nameAr} إلى عميل في العميل ٣٦٠°`);
-          } catch {
-            toast.error("تعذّر تحويل العميل المحتمل إلى عميل");
           }
-        })();
-      }
+        } catch {
+          // Roll back the optimistic move so the UI matches the database.
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId ? { ...l, stage: previousStage } : l,
+            ),
+          );
+          toast.error("تعذّر حفظ تغيير الحالة");
+        }
+      })();
     },
     [leads],
   );

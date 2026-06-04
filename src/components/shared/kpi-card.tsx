@@ -25,7 +25,7 @@ export function KpiCard({
 
   return (
     <div
-      className="relative rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group"
+      className="relative h-full rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group"
       onMouseEnter={() => setShowTip(true)}
       onMouseLeave={() => setShowTip(false)}
     >

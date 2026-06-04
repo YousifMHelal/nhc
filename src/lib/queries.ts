@@ -343,11 +343,41 @@ export async function convertLeadToCustomer(leadId: string): Promise<Customer> {
         nationality: 'غير محدد',
       },
     })
-    await tx.lead.update({ where: { id: lead.id }, data: { customerId: created.id } })
+    // Winning a lead also moves it to the ClosedWon stage so it counts toward
+    // the dashboard conversion rate (getKpiData counts leads where stage = ClosedWon).
+    await tx.lead.update({ where: { id: lead.id }, data: { customerId: created.id, stage: 'ClosedWon' as never } })
     return created
   })
 
   return toIso(customer) as unknown as Customer
+}
+
+/**
+ * Persist a lead's pipeline stage to the database. Moving a lead to
+ * "Closed Won" also converts it into a customer (see convertLeadToCustomer),
+ * which sets the ClosedWon stage and feeds the dashboard conversion rate.
+ */
+export async function updateLeadStage(leadId: string, stage: Lead['stage']): Promise<Lead> {
+  if (stage === 'Closed Won') {
+    await convertLeadToCustomer(leadId)
+    const updated = await getLeadById(leadId)
+    if (!updated) throw new Error(`Lead ${leadId} not found`)
+    return updated
+  }
+
+  if (!hasDb()) {
+    const { LEADS } = await import('./mock-data/leads')
+    const lead = LEADS.find((l) => l.id === leadId)
+    if (!lead) throw new Error(`Lead ${leadId} not found`)
+    lead.stage = stage
+    return lead
+  }
+  const { db } = await import('./db')
+  const row = await db.lead.update({
+    where: { id: leadId },
+    data: { stage: (STAGE_TO_DB[stage] ?? stage) as never },
+  })
+  return toLead(row)
 }
 
 // Map the InteractionType display value to the Prisma enum identifier.

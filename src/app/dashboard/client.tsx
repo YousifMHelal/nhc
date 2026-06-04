@@ -136,7 +136,7 @@ export function DashboardClient({ kpi, funnelStages, activities }: Props) {
         <h2 className="text-sm font-bold text-brand" style={{ fontFamily: 'var(--font-cairo)' }}>
           مؤشرات الأداء الرئيسية
         </h2>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="cursor-pointer" onClick={() => router.push('/pipeline')} title="انتقل إلى خط المبيعات">
             <KpiCard
               labelAr="إجمالي العملاء المحتملين"
