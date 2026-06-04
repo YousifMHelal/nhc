@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Integration, IntegrationStatus, IntegrationType } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { readApiError } from '@/lib/client-validation'
 import { IntegrationsPageSkeleton } from "@/components/shared/skeleton-card";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -153,6 +154,13 @@ function AddIntegrationModal({ onClose, onAdded }: { onClose: () => void; onAdde
       setError('عنوان Health Check مطلوب')
       return
     }
+    try {
+      const u = new URL(form.endpoint.trim())
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error()
+    } catch {
+      setError('عنوان Health Check غير صالح (يجب أن يبدأ بـ http أو https)')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -166,8 +174,7 @@ function AddIntegrationModal({ onClose, onAdded }: { onClose: () => void; onAdde
         }),
       })
       if (!res.ok) {
-        const j = await res.json()
-        throw new Error(j.error ?? 'فشل الحفظ')
+        throw new Error(await readApiError(res, 'فشل الحفظ'))
       }
       const created: Integration = await res.json()
       onAdded(created)

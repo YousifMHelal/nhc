@@ -34,6 +34,7 @@ import type { Lead, SalesRep, PipelineStage, LeadSource, Channel } from '@/lib/t
 import { cn, toAr } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { scoreLead } from '@/lib/ai/leadScore'
+import { isValidSaudiPhone, isValidEmail, readApiError } from '@/lib/client-validation'
 
 // ── Column config ─────────────────────────────────────────────────────────────
 
@@ -406,6 +407,7 @@ function ManageRepsDialog({ open, reps, onClose, onAdd, onDelete }: { open: bool
   const [nameAr, setNameAr] = useState('')
   const [phone, setPhone] = useState('')
   const [region, setRegion] = useState('')
+  const [phoneError, setPhoneError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -430,7 +432,12 @@ function ManageRepsDialog({ open, reps, onClose, onAdd, onDelete }: { open: bool
   }
 
   const handleAdd = async () => {
-    if (!nameAr.trim()) return
+    if (nameAr.trim().length < 2) return
+    if (phone.trim() && !isValidSaudiPhone(phone)) {
+      setPhoneError('رقم جوال غير صالح (مثال: 05XXXXXXXX)')
+      return
+    }
+    setPhoneError(undefined)
     setSaving(true)
     try {
       const res = await fetch('/api/sales-reps', {
@@ -438,7 +445,10 @@ function ManageRepsDialog({ open, reps, onClose, onAdd, onDelete }: { open: bool
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nameAr, phone, region }),
       })
-      if (!res.ok) throw new Error('فشل الحفظ')
+      if (!res.ok) {
+        toast.error(await readApiError(res, 'تعذّر إضافة المندوب، يرجى المحاولة مجدداً'))
+        return
+      }
       const rep: SalesRep = await res.json()
       onAdd(rep)
       setNameAr('')
@@ -510,7 +520,8 @@ function ManageRepsDialog({ open, reps, onClose, onAdd, onDelete }: { open: bool
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">رقم الجوال</label>
-                <Input placeholder="05xxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input placeholder="05xxxxxxxx" inputMode="tel" value={phone} aria-invalid={!!phoneError} className={phoneError ? 'border-red-500 focus-visible:ring-red-500' : undefined} onChange={(e) => { setPhone(e.target.value); setPhoneError(undefined) }} />
+                {phoneError && <p className="text-xs text-red-600">{phoneError}</p>}
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">المنطقة</label>
@@ -545,9 +556,25 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
     budget: "",
     salesRepId: salesReps[0]?.id ?? "",
   });
+  const [errors, setErrors] = useState<{ nameAr?: string; phone?: string; email?: string; budget?: string }>({})
+
+  const validate = () => {
+    const next: typeof errors = {}
+    const name = form.nameAr.trim()
+    if (!name) next.nameAr = 'الاسم مطلوب'
+    else if (name.length < 2) next.nameAr = 'الاسم قصير جداً'
+    if (!form.phone.trim()) next.phone = 'رقم الجوال مطلوب'
+    else if (!isValidSaudiPhone(form.phone)) next.phone = 'رقم جوال غير صالح (مثال: 05XXXXXXXX)'
+    if (form.email.trim() && !isValidEmail(form.email)) next.email = 'بريد إلكتروني غير صالح'
+    if (form.budget && (!(Number(form.budget) > 0) || Number(form.budget) > 1_000_000_000))
+      next.budget = 'أدخل مبلغاً صحيحاً موجباً'
+    return next
+  }
 
   const handleSubmit = () => {
-    if (!form.nameAr.trim() || !form.phone.trim()) return
+    const next = validate()
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
     const newLead: Lead = {
       id: `lead-new-${Date.now()}`, nameAr: form.nameAr, phone: form.phone,
       email: form.email || undefined, source: form.source, channel: form.channel,
@@ -568,6 +595,7 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
       budget: "",
       salesRepId: salesReps[0]?.id ?? "",
     });
+    setErrors({})
     onClose();
   }
 
@@ -578,15 +606,18 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
         <div className="grid grid-cols-2 gap-3 py-2">
           <div className="col-span-2 flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">الاسم الكامل *</label>
-            <Input placeholder="محمد عبدالله" value={form.nameAr} onChange={(e) => setForm((p) => ({ ...p, nameAr: e.target.value }))} />
+            <Input placeholder="محمد عبدالله" value={form.nameAr} aria-invalid={!!errors.nameAr} className={errors.nameAr ? 'border-red-500 focus-visible:ring-red-500' : undefined} onChange={(e) => { setForm((p) => ({ ...p, nameAr: e.target.value })); setErrors((p) => ({ ...p, nameAr: undefined })) }} />
+            {errors.nameAr && <p className="text-xs text-red-600">{errors.nameAr}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">رقم الجوال *</label>
-            <Input placeholder="05xxxxxxxx" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+            <Input placeholder="05xxxxxxxx" inputMode="tel" value={form.phone} aria-invalid={!!errors.phone} className={errors.phone ? 'border-red-500 focus-visible:ring-red-500' : undefined} onChange={(e) => { setForm((p) => ({ ...p, phone: e.target.value })); setErrors((p) => ({ ...p, phone: undefined })) }} />
+            {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">البريد الإلكتروني</label>
-            <Input placeholder="example@mail.com" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            <Input placeholder="example@mail.com" inputMode="email" value={form.email} aria-invalid={!!errors.email} className={errors.email ? 'border-red-500 focus-visible:ring-red-500' : undefined} onChange={(e) => { setForm((p) => ({ ...p, email: e.target.value })); setErrors((p) => ({ ...p, email: undefined })) }} />
+            {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
           </div>
           {[
             { label: 'المصدر', key: 'source', opts: SOURCES },
@@ -603,7 +634,8 @@ function AddLeadDialog({ open, salesReps, onClose, onAdd }: { open: boolean; sal
           ))}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">الميزانية (ريال)</label>
-            <Input type="number" placeholder="1000000" value={form.budget} onChange={(e) => setForm((p) => ({ ...p, budget: e.target.value }))} />
+            <Input type="number" min="0" placeholder="1000000" value={form.budget} aria-invalid={!!errors.budget} className={errors.budget ? 'border-red-500 focus-visible:ring-red-500' : undefined} onChange={(e) => { setForm((p) => ({ ...p, budget: e.target.value })); setErrors((p) => ({ ...p, budget: undefined })) }} />
+            {errors.budget && <p className="text-xs text-red-600">{errors.budget}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">المندوب المسؤول</label>
@@ -755,11 +787,18 @@ export function PipelineClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(lead),
       });
-      if (!res.ok) throw new Error("فشل الحفظ");
+      if (!res.ok) {
+        const message = await readApiError(res, "تعذّر حفظ العميل، يرجى المحاولة مجدداً");
+        // Roll back the optimistic insert — the server rejected it.
+        setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+        toast.error(message);
+        return;
+      }
       const saved: Lead = await res.json();
       setLeads((prev) => prev.map((l) => (l.id === lead.id ? saved : l)));
       toast.success("تم إضافة العميل المحتمل بنجاح");
     } catch {
+      setLeads((prev) => prev.filter((l) => l.id !== lead.id));
       toast.error("تعذّر حفظ العميل، يرجى المحاولة مجدداً");
     }
   }, []);

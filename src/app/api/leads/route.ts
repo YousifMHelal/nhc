@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getLeads, createLead } from '@/lib/queries'
+import { parseJsonBody, leadCreateSchema } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -11,9 +12,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const parsed = await parseJsonBody(req, leadCreateSchema)
+  if (!parsed.ok) return parsed.response
   try {
-    const body = await req.json()
-    const lead = await createLead(body)
+    const lead = await createLead(parsed.data)
     return NextResponse.json(lead, { status: 201 })
   } catch (e) {
     console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -13,6 +13,7 @@ import { StatusPill } from '@/components/shared/status-pill'
 import { toast } from 'sonner'
 import type { Campaign, Channel, PipelineStage, CampaignStatus } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { readApiError } from '@/lib/client-validation'
 import { MarketingPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -476,6 +477,10 @@ export default function MarketingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(c),
       })
+      if (!res.ok) {
+        toast.error(await readApiError(res, 'فشل إنشاء الحملة'))
+        return
+      }
       const saved: Campaign = await res.json()
       setCampaigns((prev) => [saved, ...prev])
       setSelectedId(saved.id)

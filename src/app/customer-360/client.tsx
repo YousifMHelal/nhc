@@ -38,6 +38,7 @@ import { TimelineItemSkeleton } from '@/components/shared/skeleton-card'
 import { toast } from 'sonner'
 import type { TimelineEvent, Customer, Opportunity, Contract, Unit, SalesRep, InteractionType } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { readApiError } from '@/lib/client-validation'
 import { scoreLead } from '@/lib/ai/leadScore'
 import { computeHousingEligibility } from '@/lib/ai/housingEligibility'
 import { recommendUnits } from '@/lib/ai/unitRecommendation'
@@ -143,17 +144,19 @@ function LogInteractionModal({ onClose, onSave }: { onClose: () => void; onSave:
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground">ملاحظات</label>
+          <label className="text-xs font-medium text-muted-foreground">ملاحظات *</label>
           <textarea
             className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             placeholder="اكتب ملاحظات التفاعل..."
             value={note}
+            maxLength={2000}
             onChange={(e) => setNote(e.target.value)}
           />
+          <span className="text-[11px] text-muted-foreground self-start">{toAr(note.trim().length)}/{toAr(2000)}</span>
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>إلغاء</Button>
-          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" onClick={() => { onSave(note, channel); onClose() }}>
+          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" disabled={!note.trim()} onClick={() => { if (!note.trim()) return; onSave(note.trim(), channel); onClose() }}>
             حفظ
           </Button>
         </div>
@@ -176,11 +179,11 @@ function CreateOpportunityModal({ customerName, onClose, onSave }: { customerNam
         <p className="text-xs text-muted-foreground">للعميل: <strong>{customerName}</strong></p>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">عنوان الفرصة *</label>
-          <Input placeholder="مثال: فيلا في مشروع السدرة" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Input placeholder="مثال: فيلا في مشروع السدرة" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>إلغاء</Button>
-          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" disabled={!title.trim()} onClick={() => { onSave(title); onClose() }}>
+          <Button size="sm" className="bg-brand hover:bg-brand/90 text-white" disabled={!title.trim()} onClick={() => { if (!title.trim()) return; onSave(title.trim()); onClose() }}>
             إنشاء
           </Button>
         </div>
@@ -1170,7 +1173,10 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                   note,
                 }),
               });
-              if (!res.ok) throw new Error("فشل الحفظ");
+              if (!res.ok) {
+                toast.error(await readApiError(res, "تعذّر تسجيل التفاعل، يرجى المحاولة مجدداً"));
+                return;
+              }
               const { event } = (await res.json()) as { event: TimelineEvent };
               // Display under the currently-selected id even if a lead was just
               // converted to a customer (the DB row carries the real customerId).
@@ -1222,7 +1228,10 @@ export function Customer360Client({ customers, allTimeline, allOpportunities, al
                   unitType: customer.propertyInterest,
                 }),
               });
-              if (!res.ok) throw new Error("فشل الحفظ");
+              if (!res.ok) {
+                toast.error(await readApiError(res, "تعذّر إنشاء الفرصة، يرجى المحاولة مجدداً"));
+                return;
+              }
               const { opportunity, event } = (await res.json()) as {
                 opportunity: Opportunity;
                 event: TimelineEvent;

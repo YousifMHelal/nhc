@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { Journey, JourneyNodeType, JourneyStatus } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { readApiError } from '@/lib/client-validation'
 import { WorkflowsPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Node type meta ────────────────────────────────────────────────────────────
@@ -454,6 +455,10 @@ export default function WorkflowsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(j),
       })
+      if (!res.ok) {
+        toast.error(await readApiError(res, 'فشل إنشاء الرحلة'))
+        return
+      }
       const saved: Journey = await res.json()
       setJourneys((prev) => [saved, ...prev])
       setSelected(saved)

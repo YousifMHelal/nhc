@@ -1296,7 +1296,7 @@ export async function createTicket(data: Omit<Ticket, 'id' | 'createdAt'>): Prom
   return toTicket(row) as unknown as Ticket
 }
 
-export async function updateTicket(id: string, data: Partial<Pick<Ticket, 'status' | 'assignedTo' | 'steps' | 'comments' | 'escalationHistory' | 'resolvedAt'>>): Promise<Ticket> {
+export async function updateTicket(id: string, data: Partial<Pick<Ticket, 'status' | 'assignedTo' | 'steps' | 'comments' | 'escalationHistory'>> & { resolvedAt?: string | null }): Promise<Ticket> {
   if (!hasDb()) {
     const { TICKETS } = await import('./mock-data/tickets')
     const ticket = TICKETS.find((t) => t.id === id)

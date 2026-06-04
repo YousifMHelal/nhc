@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getJourneys, createJourney } from '@/lib/queries'
+import { parseJsonBody, journeyCreateSchema } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -11,9 +12,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const parsed = await parseJsonBody(req, journeyCreateSchema)
+  if (!parsed.ok) return parsed.response
   try {
-    const body = await req.json()
-    const journey = await createJourney(body)
+    const journey = await createJourney(parsed.data)
     return NextResponse.json(journey, { status: 201 })
   } catch (e) {
     console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

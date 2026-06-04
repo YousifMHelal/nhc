@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSalesReps, createSalesRep, deleteSalesRep } from '@/lib/queries'
+import { parseJsonBody, salesRepCreateSchema, salesRepDeleteSchema } from '@/lib/validation'
 
 export async function GET() {
   try {
@@ -11,12 +12,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const parsed = await parseJsonBody(req, salesRepCreateSchema)
+  if (!parsed.ok) return parsed.response
   try {
-    const body = await req.json()
-    if (!body.nameAr?.trim()) {
-      return NextResponse.json({ error: 'nameAr is required' }, { status: 400 })
-    }
-    const rep = await createSalesRep(body)
+    const rep = await createSalesRep(parsed.data)
     return NextResponse.json(rep, { status: 201 })
   } catch (e) {
     console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -24,10 +23,10 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const parsed = await parseJsonBody(req, salesRepDeleteSchema)
+  if (!parsed.ok) return parsed.response
   try {
-    const { id } = await req.json()
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
-    await deleteSalesRep(id)
+    await deleteSalesRep(parsed.data.id)
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error(e); return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

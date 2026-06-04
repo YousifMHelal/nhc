@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { getIntegrationById, appendAuditEntry } from '@/lib/queries'
+import { validateId } from '@/lib/validation'
 import type { AuditLogEntry } from '@/lib/types'
 
 // ── SSRF protection ───────────────────────────────────────────────────────────
@@ -61,7 +62,9 @@ async function assertSafeEndpoint(endpoint: string): Promise<string | null> {
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const integration = await getIntegrationById(id)
+    const valid = validateId(id)
+    if (!valid.ok) return valid.response
+    const integration = await getIntegrationById(valid.data)
 
     if (!integration) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 })

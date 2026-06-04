@@ -14,6 +14,7 @@ import { SALES_REPS, getSalesRepById } from '@/lib/mock-data'
 import { toast } from 'sonner'
 import type { Ticket, TicketStatus, TicketSeverity, SupportLevel } from '@/lib/types'
 import { cn, toAr } from '@/lib/utils'
+import { readApiError } from '@/lib/client-validation'
 import { SupportPageSkeleton } from '@/components/shared/skeleton-card'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -392,6 +393,10 @@ export default function SupportPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ticket),
       })
+      if (!res.ok) {
+        toast.error(await readApiError(res, 'فشل إنشاء التذكرة'))
+        return
+      }
       const saved: Ticket = await res.json()
       setTickets((prev) => [saved, ...prev])
       toast.success('تم إنشاء التذكرة بنجاح')
